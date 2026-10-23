@@ -1,15 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { keys } from './input.js';
+import { ISLAND_SCALE as S } from './island.js';
 
 // centro do diorama (ilha + base rochosa)
-export const CENTER = new THREE.Vector3(0, -1.5, 0);
+export const CENTER = new THREE.Vector3(0, -1.5 * S, 0);
 
 const ELEVATION = THREE.MathUtils.degToRad(45); // ângulo acima do chão da câmera 2
 const ROTATION_SPEED = 0.3;                      // rad/s da câmera 2
-const MIN_RADIUS = 8, MAX_RADIUS = 40;
+const MIN_RADIUS = 8 * S, MAX_RADIUS = 40 * S;
 
-const FREE_SPEED = 8;                            // unidades/s da câmera 3
+const FREE_SPEED = 8 * S;                            // unidades/s da câmera 3
 const LOOK_SENSITIVITY = 0.002;                  // rad por pixel do mouse
 const MAX_PITCH = THREE.MathUtils.degToRad(89);
 
@@ -19,7 +20,7 @@ export function createCameras(renderer) {
 
   // Câmera 1 (padrão): orbital, controlada pelo mouse, alvo fixo no centro
   const orbitCam = new THREE.PerspectiveCamera(50, aspect, 0.1, 300);
-  orbitCam.position.set(10, 4, 16);
+  orbitCam.position.set(10 * S, 4 * S, 16 * S);
   const controls = new OrbitControls(orbitCam, dom);
   controls.target.copy(CENTER);
   controls.enableDamping = true;
@@ -28,7 +29,7 @@ export function createCameras(renderer) {
 
   // Câmera 2: ~45° acima do chão, olhando para o centro e girando ao longo do tempo
   const autoCam = new THREE.PerspectiveCamera(50, aspect, 0.1, 300);
-  let radius = 18, angle = 0;
+  let radius = 18 * S, angle = 0;
 
   // Câmera 3: navegação livre (WASD anda, Espaço sobe, Shift Esquerdo desce, mouse olha)
   const freeCam = new THREE.PerspectiveCamera(50, aspect, 0.1, 300);

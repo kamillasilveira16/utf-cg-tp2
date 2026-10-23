@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { mat, mesh, rand, hash3, colorFaces, rock, vcMat } from './utils.js';
 
+// fator de escala da ilha (1 = tamanho original). A ilha inteira é escalada por igual,
+// então as proporções entre suas partes não mudam. Câmeras e trajeto do Mario acompanham.
+export const ISLAND_SCALE = 6.5;
+
 // contorno ondulado da borda (raio em função do ângulo)
 const outline = (t) => 5 + 0.25 * Math.sin(5 * t) + 0.15 * Math.sin(9 * t + 1) + 0.1 * Math.sin(13 * t + 2);
 
@@ -95,18 +99,21 @@ function buildPond(parent) {
 }
 
 export function createIsland() {
-  const group = new THREE.Group();
+  const group = new THREE.Group();          // fica sem escala: o Mario é filho dele
+  const body = new THREE.Group();           // a ilha em si, escalada por igual
+  body.scale.setScalar(ISLAND_SCALE);
+  group.add(body);
 
   // tampa de grama (borda ondulada + chanfro) e camada de terra
   const grass = new THREE.Mesh(slabGeo(0.1, 0.3, 0.1), mat(0x6cc644));
   grass.position.y = -0.4;                       // topo em y = 0
   const dirt = new THREE.Mesh(slabGeo(-0.15, 0.35, 0.08), mat(0x8b5a3c));
   dirt.position.y = -0.88;
-  group.add(grass, dirt);
+  body.add(grass, dirt);
 
-  buildRockyBase(group);
-  const water = buildPond(group);
-  const floating = buildFloatingRocks(group);
+  buildRockyBase(body);
+  const water = buildPond(body);
+  const floating = buildFloatingRocks(body);
 
   return {
     group,
