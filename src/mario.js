@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioRun.js';
-import { ISLAND_SCALE } from './island.js';
+import { ISLAND_SCALE, clampToIsland } from './island.js';
+import { keys } from './input.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
 const BASE = new URL('../assets/mario/', import.meta.url).href;
@@ -12,10 +13,12 @@ const FACE = 2;             // qual das 9 expressões mostrar (Face00..Face08)
 const HAND = 2;             // qual das 7 mãos mostrar (Hand?00..Hand?06)
 const USE_NORMAL_MAP = false; // normal map do corpo (opcional "normal mapping"); teste com true
 
-// corrida em círculo ao redor do centro da ilha (RUN_RADIUS = 0 corre parado no lugar)
-const RUN_RADIUS = 3.2 * ISLAND_SCALE;
-const RUN_SPEED = 2.8;      // unidades/s no chão
-const CYCLE_HZ = 1.75;      // ciclos de corrida por segundo (1 ciclo = 2 passos)
+// movimento controlado por WASD (relativo à direção em que a câmera olha)
+const RUN_SPEED = 4;        // unidades/s
+const CYCLE_HZ = 2.5;       // ciclos de corrida por segundo (1 ciclo = 2 passos); passada = RUN_SPEED / CYCLE_HZ
+const ACCEL = 10;           // quão rápido acelera/freia
+const TURN_RATE = 12;       // quão rápido vira para a direção do movimento
+const START = new THREE.Vector3(2.5 * ISLAND_SCALE, 0, -1.5 * ISLAND_SCALE); // ponto inicial (fora da lagoa)
 
 export async function loadMario() {
   // o FBX cita texturas como "MarioBodyFix_alb.png"; no disco estão em minúsculo
@@ -44,20 +47,42 @@ export async function loadMario() {
   const group = new THREE.Group();
   group.add(model);
 
+  group.position.copy(START);
+
   const anim = createRunAnimation(model);
-  let phase = 0, angle = 0;
-  anim.pose(phase);
+  const moveDir = new THREE.Vector3(0, 0, 1);
+  let speed = 0, facing = 0, phase = 0;
+  anim.pose(phase, { k: 0 });
 
   return {
     group,
-    update(dt) {
-      phase += dt * CYCLE_HZ * Math.PI * 2;
-      anim.pose(phase);
-      if (RUN_RADIUS > 0) {
-        angle += (RUN_SPEED / RUN_RADIUS) * dt;
-        group.position.set(Math.cos(angle) * RUN_RADIUS, 0, Math.sin(angle) * RUN_RADIUS);
-        group.rotation.y = -angle; // de frente para a direção do movimento (o modelo olha para +Z)
+    // heading: direção horizontal para onde a câmera olha (frente = (sin h, cos h))
+    update(dt, heading = 0) {
+      const fwd = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
+      const side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+      const sh = Math.sin(heading), ch = Math.cos(heading);
+      // W = para onde a câmera olha; D = direita da câmera
+      const mx = fwd * sh - side * ch, mz = fwd * ch + side * sh;
+      const len = Math.hypot(mx, mz);
+      if (len > 0) moveDir.set(mx / len, 0, mz / len); // diagonal não fica mais rápida
+
+      const target = len > 0 ? RUN_SPEED : 0;
+      speed += (target - speed) * (1 - Math.exp(-ACCEL * dt));
+      if (target === 0 && speed < 0.02) speed = 0;
+
+      group.position.addScaledVector(moveDir, speed * dt);
+      clampToIsland(group.position);
+
+      if (speed > 0.05) { // vira suavemente (pelo menor ângulo) para a direção do movimento
+        const diff = Math.atan2(Math.sin(Math.atan2(moveDir.x, moveDir.z) - facing), Math.cos(Math.atan2(moveDir.x, moveDir.z) - facing));
+        facing += diff * (1 - Math.exp(-TURN_RATE * dt));
+        group.rotation.y = facing; // o modelo olha para +Z
       }
+
+      // a animação acompanha a velocidade: parado = em pé; correndo = ciclo completo
+      const k = THREE.MathUtils.clamp(speed / RUN_SPEED, 0, 1);
+      phase += dt * CYCLE_HZ * Math.PI * 2 * k;
+      anim.pose(phase, { k });
     },
   };
 }

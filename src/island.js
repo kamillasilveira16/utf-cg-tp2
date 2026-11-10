@@ -8,6 +8,15 @@ export const ISLAND_SCALE = 6.5;
 // contorno ondulado da borda (raio em função do ângulo)
 const outline = (t) => 5 + 0.25 * Math.sin(5 * t) + 0.15 * Math.sin(9 * t + 1) + 0.1 * Math.sin(13 * t + 2);
 
+// mantém um ponto (x, z do mundo) dentro da grama da ilha, deixando uma margem até a borda
+export function clampToIsland(pos, margin = 0.5) {
+  const t = Math.atan2(-pos.z, pos.x); // a forma foi extrudada e girada: o ângulo do mundo é invertido em z
+  const maxR = (outline(t) + 0.1) * ISLAND_SCALE - margin; // +0.1: a grama sobra um pouco do contorno
+  const r = Math.hypot(pos.x, pos.z);
+  if (r > maxR) { pos.x *= maxR / r; pos.z *= maxR / r; }
+  return pos;
+}
+
 // laje com o contorno ondulado, extrudada e com chanfro
 function slabGeo(grow, depth, bevel) {
   const s = new THREE.Shape();

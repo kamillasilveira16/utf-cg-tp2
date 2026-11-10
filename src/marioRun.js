@@ -46,28 +46,29 @@ export function createRunAnimation(root) {
   }
 
   // ângulos de uma perna na fase p (rad): coxa, joelho e pé (Rx em eixo do mundo)
-  function leg(p) {
-    const thigh = -0.85 * s(p) + 0.1;                    // balanço frente/trás
-    const knee = 0.3 + 1.0 * Math.max(0, c(p - 0.3));    // dobra forte quando a perna vem para a frente
-    const foot = 0.5 * (thigh + knee) + 0.15;
+  // k (0..1) é a intensidade da corrida: 0 = em pé parado, 1 = corrida completa
+  function leg(p, k) {
+    const thigh = k * (-0.85 * s(p) + 0.1);                  // balanço frente/trás
+    const knee = k * (0.3 + 1.0 * Math.max(0, c(p - 0.3)));  // dobra forte quando a perna vem para a frente
+    const foot = 0.5 * (thigh + knee) + 0.15 * k;
     return { thigh, knee, foot };
   }
 
   // ph: fase do ciclo em rad (2π = dois passos). Em seguida, ajusta a altura para o pé apoiado tocar o chão.
-  function pose(ph, { lean = 0.22, air = 3 } = {}) {
+  function pose(ph, { lean = 0.22, air = 3, k = 1 } = {}) {
     const pL = ph, pR = ph + Math.PI;
-    const L = leg(pL), R = leg(pR);
+    const L = leg(pL, k), R = leg(pR, k);
 
-    setWorld('Hip', E(0.05, -0.15 * s(pL), 0));          // quadril gira junto com a passada
-    setWorld('Spine1', E(lean, 0.2 * s(pL), 0));          // tronco inclinado e girando ao contrário
-    setWorld('Spine2', E(lean, 0.2 * s(pL), 0));
-    setWorld('Head', E(0.05, -0.1 * s(pL), 0));           // cabeça olhando para a frente
+    setWorld('Hip', E(0.05 * k, -0.15 * s(pL) * k, 0));          // quadril gira junto com a passada
+    setWorld('Spine1', E(lean * k, 0.2 * s(pL) * k, 0));          // tronco inclinado e girando ao contrário
+    setWorld('Spine2', E(lean * k, 0.2 * s(pL) * k, 0));
+    setWorld('Head', E(0.05 * k, -0.1 * s(pL) * k, 0));           // cabeça olhando para a frente
 
     setWorld('LegL1', E(L.thigh)); setWorld('LegL2', E(L.thigh + L.knee)); setWorld('FootL', E(L.foot));
     setWorld('LegR1', E(R.thigh)); setWorld('LegR2', E(R.thigh + R.knee)); setWorld('FootR', E(R.foot));
 
     // braços: abaixa da T-pose (Rz) e balança em oposição à perna do mesmo lado; cotovelo dobrado
-    const D = 1.2, swingL = 0.9 * s(pL), swingR = 0.9 * s(pR), elbow = -1.3;
+    const D = 1.2, swingL = 0.9 * s(pL) * k, swingR = 0.9 * s(pR) * k, elbow = -(0.15 + 1.15 * k);
     setWorld('ArmL1', E(swingL, 0, -D)); setWorld('ArmL2', E(swingL + elbow, 0, -D));
     setWorld('ArmR1', E(swingR, 0, D));  setWorld('ArmR2', E(swingR + elbow, 0, D));
 
@@ -81,7 +82,7 @@ export function createRunAnimation(root) {
       yInRoot(rig.FootR.b) - ANKLE_ABOVE_SOLE,
       yInRoot(toeL) - TOE_ABOVE_SOLE,
       yInRoot(toeR) - TOE_ABOVE_SOLE);
-    root0.b.position.y = root0.restPos.y - lowest + air * (0.5 - 0.5 * c(2 * ph));
+    root0.b.position.y = root0.restPos.y - lowest + air * k * (0.5 - 0.5 * c(2 * ph));
   }
 
   return { pose };

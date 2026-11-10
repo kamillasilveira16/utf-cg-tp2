@@ -25,6 +25,7 @@ let mario = null;
 loadMario().then((m) => {
   mario = m;
   island.group.add(m.group);
+  cameras.setFollowTarget(m.group);
 }).catch(console.error);
 
 setupInput({ onCamera: cameras.select });
@@ -34,7 +35,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = clock.getDelta(), t = clock.elapsedTime;
   island.update(t);
-  if (mario) mario.update(dt);
+  if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario
   cameras.update(dt);
   renderer.render(scene, cameras.camera);
 });
