@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioRun.js';
-import { ISLAND_SCALE, clampToIsland } from './island.js';
+import { ISLAND_SCALE, clampToIsland, groundHeight } from './island.js';
 import { keys, consumePress } from './input.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
@@ -18,7 +18,7 @@ const RUN_SPEED = 4;        // unidades/s
 const CYCLE_HZ = 2.5;       // ciclos de corrida por segundo (1 ciclo = 2 passos); passada = RUN_SPEED / CYCLE_HZ
 const ACCEL = 10;           // quão rápido acelera/freia
 const TURN_RATE = 12;       // quão rápido vira para a direção do movimento
-const START = new THREE.Vector3(2.5 * ISLAND_SCALE, 0, -1.5 * ISLAND_SCALE); // ponto inicial (fora da lagoa)
+const START = new THREE.Vector3(2.5 * ISLAND_SCALE, 0, -1.5 * ISLAND_SCALE); // ponto inicial (x, z); o y vem do relevo
 
 // pulo (barra de espaço). Em vez de chutar gravidade e velocidade, definimos o que queremos ver
 // (altura e tempo de subida) e derivamos o resto: h = g*t²/2  e  v0 = g*t
@@ -61,6 +61,7 @@ export async function loadMario() {
   group.add(model);
 
   group.position.copy(START);
+  group.position.y = groundHeight(START.x, START.z);
 
   const anim = createRunAnimation(model);
   const moveDir = new THREE.Vector3(0, 0, 1);
@@ -88,7 +89,8 @@ export async function loadMario() {
       group.position.addScaledVector(moveDir, speed * dt);
       clampToIsland(group.position);
 
-      // --- pulo: o Y do grupo é a altura do Mario acima do chão (a ilha tem o topo em y = 0) ---
+      // --- pulo: o Y do grupo é a altura do Mario no mundo; o chão é o relevo sob ele ---
+      const ground = groundHeight(group.position.x, group.position.z);
       // consome o toque todo quadro (mesmo no ar) e guarda um instante: pulo "adiantado" funciona
       jumpBuf = consumePress('Space') ? JUMP_BUFFER : Math.max(0, jumpBuf - dt);
       if (onGround && jumpBuf > 0) { vy = JUMP_SPEED; onGround = false; jumpBuf = 0; }
@@ -96,8 +98,9 @@ export async function loadMario() {
         if (vy > 0 && !keys.has('Space')) vy = Math.min(vy, JUMP_SPEED * JUMP_CUT); // espaço solto: pulo curto
         vy -= GRAVITY * (vy < 0 ? FALL_GRAVITY : 1) * dt;
         group.position.y += vy * dt;
-        if (group.position.y <= 0) { group.position.y = 0; vy = 0; onGround = true; landT = 0; }
+        if (group.position.y <= ground) { group.position.y = ground; vy = 0; onGround = true; landT = 0; }
       } else {
+        group.position.y = ground; // no chão, acompanha o relevo
         landT += dt;
       }
 

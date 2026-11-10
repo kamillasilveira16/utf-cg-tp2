@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mat, mesh, rand, hash3, colorFaces, rock, vcMat } from './utils.js';
+import { mat, rand, hash3, colorFaces, rock, vcMat } from './utils.js';
 
 // fator de escala da ilha (1 = tamanho original). A ilha inteira é escalada por igual,
 // então as proporções entre suas partes não mudam. Câmeras e trajeto do Mario acompanham.
@@ -15,6 +15,62 @@ export function clampToIsland(pos, margin = 0.5) {
   const r = Math.hypot(pos.x, pos.z);
   if (r > maxR) { pos.x *= maxR / r; pos.z *= maxR / r; }
   return pos;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Relevo. Os morros são "montinhos" suaves (gaussianas) somados. Medidas em unidades locais da ilha
+// (antes da escala): x, z = centro; r = largura do morro; h = altura no topo. A altura vai a zero
+// perto da borda, para o terreno encontrar a lateral da ilha sem degrau.
+// ---------------------------------------------------------------------------------------------
+const HILLS = [
+  { x: -1.9, z: -1.4, r: 2.0, h: 0.75 },
+  { x: 2.3, z: 1.1, r: 1.4, h: 0.48 },
+  { x: -0.2, z: 2.9, r: 1.1, h: 0.34 },
+  { x: 3.0, z: -2.3, r: 1.2, h: 0.29 },
+  { x: -3.0, z: 1.8, r: 1.0, h: 0.21 },
+];
+
+function heightLocal(x, z) {
+  let h = 0;
+  for (const m of HILLS) {
+    const dx = x - m.x, dz = z - m.z;
+    h += m.h * Math.exp(-(dx * dx + dz * dz) / (m.r * m.r));
+  }
+  const u = Math.hypot(x, z) / (outline(Math.atan2(-z, x)) + 0.1); // 0 no centro, 1 na borda da grama
+  return h * (1 - THREE.MathUtils.smoothstep(u, 0.7, 0.96));
+}
+
+// altura do chão em um ponto (x, z) do mundo; usada para o Mario andar e pular sobre o relevo
+export function groundHeight(x, z) {
+  return heightLocal(x / ISLAND_SCALE, z / ISLAND_SCALE) * ISLAND_SCALE;
+}
+
+// malha do terreno: grade polar (anéis x segmentos) que segue o contorno ondulado da ilha
+function buildTerrain() {
+  const NR = 64, NS = 160; // anéis e segmentos
+  const pos = [0, heightLocal(0, 0), 0]; // vértice 0 = centro
+  for (let i = 1; i <= NR; i++) {
+    for (let j = 0; j < NS; j++) {
+      const t = (j / NS) * Math.PI * 2;
+      const R = (outline(t) + 0.1) * (i / NR);      // +0.1: mesmo contorno da tampa de grama
+      const x = Math.cos(t) * R, z = -Math.sin(t) * R; // mesma convenção da laje (girada em X)
+      pos.push(x, heightLocal(x, z), z);
+    }
+  }
+  const ring = (i, j) => 1 + (i - 1) * NS + (j % NS); // índice do vértice do anel i (1..NR), segmento j
+  const idx = [];
+  for (let j = 0; j < NS; j++) idx.push(0, ring(1, j), ring(1, j + 1)); // leque do centro
+  for (let i = 2; i <= NR; i++) {
+    for (let j = 0; j < NS; j++) {
+      const a = ring(i - 1, j), b = ring(i - 1, j + 1), c = ring(i, j), d = ring(i, j + 1);
+      idx.push(a, c, d, a, d, b);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, mat(0x6cc644, { flatShading: false })); // sombreamento suave: morros arredondados
 }
 
 // laje com o contorno ondulado, extrudada e com chanfro
@@ -97,31 +153,25 @@ function buildFloatingRocks(parent) {
   return rocks;
 }
 
-function buildPond(parent) {
-  const rim = mesh(new THREE.RingGeometry(1.2, 1.5, 7, 1), 0x9a8c80, [-0.8, 0.03, 1.2]);
-  rim.rotation.x = -Math.PI / 2;
-  const water = mesh(new THREE.CircleGeometry(1.3, 24), 0x4fb4ff, [-0.8, 0.04, 1.2],
-    { transparent: true, opacity: 0.85, side: THREE.DoubleSide });
-  water.rotation.x = -Math.PI / 2;
-  parent.add(rim, water);
-  return water;
-}
-
 export function createIsland() {
   const group = new THREE.Group();          // fica sem escala: o Mario é filho dele
   const body = new THREE.Group();           // a ilha em si, escalada por igual
   body.scale.setScalar(ISLAND_SCALE);
   group.add(body);
 
-  // tampa de grama (borda ondulada + chanfro) e camada de terra
-  const grass = new THREE.Mesh(slabGeo(0.1, 0.3, 0.1), mat(0x6cc644));
+  // borda de grama (ondulada + chanfro) e camada de terra
+  const grassGeo = slabGeo(0.1, 0.3, 0.1);
+  // desenha só a lateral da laje: o topo plano ficaria escondido dentro dos morros
+  const sides = grassGeo.groups.find((g) => g.materialIndex === 1);
+  grassGeo.clearGroups();
+  grassGeo.setDrawRange(sides.start, sides.count);
+  const grass = new THREE.Mesh(grassGeo, mat(0x6cc644));
   grass.position.y = -0.4;                       // topo em y = 0
   const dirt = new THREE.Mesh(slabGeo(-0.15, 0.35, 0.08), mat(0x8b5a3c));
   dirt.position.y = -0.88;
-  body.add(grass, dirt);
+  body.add(grass, dirt, buildTerrain());
 
   buildRockyBase(body);
-  const water = buildPond(body);
   const floating = buildFloatingRocks(body);
 
   return {
@@ -131,7 +181,6 @@ export function createIsland() {
         r.position.y = r.userData.y0 + Math.sin(t + r.userData.ph) * 0.2;
         r.rotation.y = t * r.userData.sp;
       });
-      water.material.opacity = 0.82 + Math.sin(t * 2) * 0.05;
     },
   };
 }
