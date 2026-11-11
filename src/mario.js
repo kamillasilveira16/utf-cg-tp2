@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioRun.js';
-import { ISLAND_SCALE, clampToIsland, groundHeight } from './island.js';
+import { ISLAND_SCALE, clampToIsland, collideWithCastle, groundHeight } from './island.js';
 import { keys, consumePress } from './input.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
@@ -16,6 +16,7 @@ const USE_NORMAL_MAP = false; // normal map do corpo (opcional "normal mapping")
 // movimento controlado por WASD (relativo à direção em que a câmera olha)
 const RUN_SPEED = 4;        // unidades/s
 const CYCLE_HZ = 2.5;       // ciclos de corrida por segundo (1 ciclo = 2 passos); passada = RUN_SPEED / CYCLE_HZ
+const RADIUS = 0.35;        // raio de colisão do Mario (círculo no chão) contra o castelo
 const ACCEL = 10;           // quão rápido acelera/freia
 const TURN_RATE = 12;       // quão rápido vira para a direção do movimento
 const START = new THREE.Vector3(2.5 * ISLAND_SCALE, 0, -1.5 * ISLAND_SCALE); // ponto inicial (x, z); o y vem do relevo
@@ -87,6 +88,7 @@ export async function loadMario() {
       if (target === 0 && speed < 0.02) speed = 0;
 
       group.position.addScaledVector(moveDir, speed * dt);
+      collideWithCastle(group.position, RADIUS); // o castelo é decorativo: não dá para entrar
       clampToIsland(group.position);
 
       // --- pulo: o Y do grupo é a altura do Mario no mundo; o chão é o relevo sob ele ---

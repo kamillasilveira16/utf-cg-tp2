@@ -30,14 +30,92 @@ const HILLS = [
   { x: -3.0, z: 1.8, r: 1.0, h: 0.21 },
 ];
 
-function heightLocal(x, z) {
+// soma dos morros (sem platô nem borda)
+function hillSum(x, z) {
   let h = 0;
   for (const m of HILLS) {
     const dx = x - m.x, dz = z - m.z;
     h += m.h * Math.exp(-(dx * dx + dz * dz) / (m.r * m.r));
   }
+  return h;
+}
+
+// Castelo da Peach: no topo do morro mais alto, virado para o centro da ilha.
+// width/depth em unidades do MUNDO (o castelo é escalado para ter essa largura; ver castle.js).
+const PEAK = HILLS.reduce((a, b) => (b.h > a.h ? b : a));
+const CASTLE_WIDTH = 15;
+export const CASTLE_SITE = {
+  x: PEAK.x * ISLAND_SCALE,
+  z: PEAK.z * ISLAND_SCALE,
+  yaw: Math.atan2(-PEAK.x, -PEAK.z),          // frente (+Z do modelo) apontando para o centro da ilha
+  width: CASTLE_WIDTH,
+  depth: CASTLE_WIDTH * (202.3 / 265.3),       // proporção do modelo (largura x profundidade)
+};
+
+// Colisão do castelo. Ele é só decorativo: o Mario não entra. São retângulos alinhados ao castelo
+// que cobrem as paredes, medidos na planta do modelo (formato de "H": ala de trás, corpo central e
+// ala da frente; as reentrâncias laterais ficam livres). Coordenadas normalizadas pela largura do
+// castelo, com origem no centro: u = direita, v = frente (+Z do modelo, onde fica a porta).
+// Para ver as caixas na tela, abra a página com ?colliders no endereço.
+const CASTLE_BOXES_UV = [
+  { u0: -0.5,   u1: 0.5,   v0: -0.381, v1: -0.18  }, // ala de trás
+  { u0: -0.323, u1: 0.319, v0: -0.18,  v1: 0.135  }, // corpo central
+  { u0: -0.5,   u1: 0.5,   v0: 0.135,  v1: 0.381  }, // ala da frente
+];
+// mesmos retângulos em unidades do mundo, no referencial do castelo (x = direita, z = frente)
+export const CASTLE_COLLIDERS = CASTLE_BOXES_UV.map((b) => ({
+  x0: b.u0 * CASTLE_WIDTH, x1: b.u1 * CASTLE_WIDTH, z0: b.v0 * CASTLE_WIDTH, z1: b.v1 * CASTLE_WIDTH,
+}));
+
+// Empurra um ponto (x, z do mundo) para fora do castelo, tratando o Mario como um círculo de raio
+// `radius`. O empurrão sai pela normal da parede, então ele desliza ao longo dela em vez de travar.
+export function collideWithCastle(pos, radius = 0.35) {
+  const c = Math.cos(CASTLE_SITE.yaw), s = Math.sin(CASTLE_SITE.yaw);
+  // mundo -> referencial do castelo (mesma rotação usada em heightLocal)
+  const dx = pos.x - CASTLE_SITE.x, dz = pos.z - CASTLE_SITE.z;
+  let lx = dx * c - dz * s, lz = dx * s + dz * c;
+  let hit = false;
+  for (let pass = 0; pass < 2; pass++) { // 2 passadas: um canto entre dois retângulos pode empurrar para o outro
+    for (const r of CASTLE_COLLIDERS) {
+      const qx = THREE.MathUtils.clamp(lx, r.x0, r.x1), qz = THREE.MathUtils.clamp(lz, r.z0, r.z1); // ponto do retângulo mais perto
+      const nx = lx - qx, nz = lz - qz, d = Math.hypot(nx, nz);
+      if (d >= radius) continue;
+      hit = true;
+      if (d > 1e-6) { lx = qx + (nx / d) * radius; lz = qz + (nz / d) * radius; }
+      else { // centro já dentro do retângulo (não deveria acontecer): sai pela face mais próxima
+        const out = [lx - r.x0, r.x1 - lx, lz - r.z0, r.z1 - lz];
+        const k = out.indexOf(Math.min(...out));
+        if (k === 0) lx = r.x0 - radius; else if (k === 1) lx = r.x1 + radius;
+        else if (k === 2) lz = r.z0 - radius; else lz = r.z1 + radius;
+      }
+    }
+  }
+  if (hit) { // referencial do castelo -> mundo
+    pos.x = CASTLE_SITE.x + lx * c + lz * s;
+    pos.z = CASTLE_SITE.z - lx * s + lz * c;
+  }
+  return pos;
+}
+
+// Platô: o terreno fica plano sob o castelo (retângulo + margem) e se mistura aos morros em volta.
+// Altura do platô = altura do topo do morro, então o morro não cresce nem encolhe.
+const PLATEAU = {
+  hw: CASTLE_SITE.width / 2 / ISLAND_SCALE + 0.15,  // meia-largura (unidades locais)
+  hd: CASTLE_SITE.depth / 2 / ISLAND_SCALE + 0.17,  // meia-profundidade
+  blend: 1.3,                                       // largura da rampa até o morro natural
+  h: hillSum(PEAK.x, PEAK.z),
+};
+
+function heightLocal(x, z) {
+  // posição no referencial do castelo (rodado por yaw): lx = largura, lz = frente
+  const c = Math.cos(CASTLE_SITE.yaw), s = Math.sin(CASTLE_SITE.yaw);
+  const dx = x - PEAK.x, dz = z - PEAK.z;
+  const lx = dx * c - dz * s, lz = dx * s + dz * c;
+  const sd = Math.hypot(Math.max(Math.abs(lx) - PLATEAU.hw, 0), Math.max(Math.abs(lz) - PLATEAU.hd, 0)); // distância ao retângulo
+  const w = 1 - THREE.MathUtils.smoothstep(sd, 0, PLATEAU.blend); // 1 sob o castelo, 0 longe
+  const h = THREE.MathUtils.lerp(hillSum(x, z), PLATEAU.h, w);
   const u = Math.hypot(x, z) / (outline(Math.atan2(-z, x)) + 0.1); // 0 no centro, 1 na borda da grama
-  return h * (1 - THREE.MathUtils.smoothstep(u, 0.7, 0.96));
+  return h * (1 - THREE.MathUtils.smoothstep(u, 0.84, 0.97));      // zero na borda: emenda com a lateral
 }
 
 // altura do chão em um ponto (x, z) do mundo; usada para o Mario andar e pular sobre o relevo
