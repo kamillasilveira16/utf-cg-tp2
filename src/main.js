@@ -5,6 +5,7 @@ import { createIsland } from './island.js';
 import { setupInput } from './input.js';
 import { loadMario } from './mario.js';
 import { loadCastle } from './castle.js';
+import { loadToadHouse } from './toadhouse.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff);
@@ -31,6 +32,9 @@ loadMario().then((m) => {
 
 // castelo da Peach no topo do morro mais alto
 loadCastle().then((c) => island.group.add(c)).catch(console.error);
+
+// casa do Toad no morro do Toad
+loadToadHouse().then((h) => island.group.add(h)).catch(console.error);
 
 setupInput({ onCamera: cameras.select });
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });

@@ -23,11 +23,11 @@ export function clampToIsland(pos, margin = 0.5) {
 // perto da borda, para o terreno encontrar a lateral da ilha sem degrau.
 // ---------------------------------------------------------------------------------------------
 const HILLS = [
-  { x: -1.9, z: -1.4, r: 2.0, h: 0.75 },
-  { x: 2.3, z: 1.1, r: 1.4, h: 0.48 },
-  { x: -0.2, z: 2.9, r: 1.1, h: 0.34 },
-  { x: 3.0, z: -2.3, r: 1.2, h: 0.29 },
-  { x: -3.0, z: 1.8, r: 1.0, h: 0.21 },
+  { x: -1.9, z: -1.4, r: 2.0, h: 0.75, name: 'peach' },
+  { x:  2.3, z:  1.1, r: 1.4, h: 0.48, name: '' },
+  { x: -0.2, z:  2.9, r: 1.1, h: 0.34, name: 'luigi' },
+  { x:  3.0, z: -2.3, r: 1.2, h: 0.29, name: 'toad' },
+  { x: -3.0, z:  1.8, r: 1.0, h: 0.21, name: '' },
 ];
 
 // soma dos morros (sem platô nem borda)
@@ -40,9 +40,9 @@ function hillSum(x, z) {
   return h;
 }
 
-// Castelo da Peach: no topo do morro mais alto, virado para o centro da ilha.
+// Castelo da Peach: no morro marcado com name: 'peach', virado para o centro da ilha.
 // width/depth em unidades do MUNDO (o castelo é escalado para ter essa largura; ver castle.js).
-const PEAK = HILLS.reduce((a, b) => (b.h > a.h ? b : a));
+const PEAK = HILLS.find((h) => h.name === 'peach');
 const CASTLE_WIDTH = 15;
 export const CASTLE_SITE = {
   x: PEAK.x * ISLAND_SCALE,
@@ -97,23 +97,92 @@ export function collideWithCastle(pos, radius = 0.35) {
   return pos;
 }
 
-// Platô: o terreno fica plano sob o castelo (retângulo + margem) e se mistura aos morros em volta.
-// Altura do platô = altura do topo do morro, então o morro não cresce nem encolhe.
-const PLATEAU = {
-  hw: CASTLE_SITE.width / 2 / ISLAND_SCALE + 0.15,  // meia-largura (unidades locais)
-  hd: CASTLE_SITE.depth / 2 / ISLAND_SCALE + 0.17,  // meia-profundidade
-  blend: 1.3,                                       // largura da rampa até o morro natural
-  h: hillSum(PEAK.x, PEAK.z),
+// Casa do Toad: no morro marcado com name: 'toad', virada para o centro da ilha. A origem do modelo é o
+// centro da casa; a base redonda (com o caminho na frente) tem 849 x 960 unidades do modelo.
+const TOAD_HILL = HILLS.find((h) => h.name === 'toad');
+const TOAD_WIDTH = 5.5; // diâmetro da base da casa em unidades do MUNDO (ver toadhouse.js)
+const TOAD_SCALE = TOAD_WIDTH / 848.8; // unidades do modelo -> mundo
+export const TOAD_SITE = {
+  x: TOAD_HILL.x * ISLAND_SCALE,
+  z: TOAD_HILL.z * ISLAND_SCALE,
+  yaw: Math.atan2(-TOAD_HILL.x, -TOAD_HILL.z), // frente (+Z do modelo: porta e caminho) para o centro da ilha
+  width: TOAD_WIDTH,
+  depth: TOAD_WIDTH * (960.4 / 848.8),
+  scale: TOAD_SCALE,                            // fator de escala do modelo (unidades do modelo -> mundo)
+  // colisão: a casa é decorativa e é bloqueada inteira. A forma é a união de dois pedaços, medidos no modelo:
+  //  - um círculo com a base redonda toda (raio 424 no modelo; o chapéu sozinho tem 364)
+  //  - um retângulo na frente com a escada e o caminho (meia-largura 212, do centro até z = 536 no modelo)
+  colliderRadius: 424 * TOAD_SCALE,
+  stairs: { halfW: 212 * TOAD_SCALE, zEnd: 536 * TOAD_SCALE },
 };
 
+// Empurra um ponto (x, z do mundo) para fora da casa do Toad (círculo da base + retângulo da escada), tratando
+// o Mario como um círculo de raio `radius`. O empurrão sai pela normal, então ele contorna a casa em vez de travar.
+export function collideWithToadHouse(pos, radius = 0.35) {
+  const c = Math.cos(TOAD_SITE.yaw), s = Math.sin(TOAD_SITE.yaw);
+  // mundo -> referencial da casa (mesma rotação usada em heightLocal): lx = direita, lz = frente (escada)
+  const dx = pos.x - TOAD_SITE.x, dz = pos.z - TOAD_SITE.z;
+  let lx = dx * c - dz * s, lz = dx * s + dz * c;
+  const { colliderRadius: R, stairs: st } = TOAD_SITE;
+  let hit = false;
+  for (let pass = 0; pass < 3; pass++) { // várias passadas: no canto entre o círculo e a escada um empurrão pode levar ao outro
+    // 1) base redonda
+    const d = Math.hypot(lx, lz), min = R + radius;
+    if (d < min) {
+      hit = true;
+      if (d > 1e-6) { lx *= min / d; lz *= min / d; } else lx = min; // exatamente no centro: sai por um lado qualquer
+    }
+    // 2) escada: retângulo da frente (o lado de trás, z = 0, fica dentro do círculo)
+    const qx = THREE.MathUtils.clamp(lx, -st.halfW, st.halfW), qz = THREE.MathUtils.clamp(lz, 0, st.zEnd); // ponto do retângulo mais perto
+    const nx = lx - qx, nz = lz - qz, e = Math.hypot(nx, nz);
+    if (e < radius) {
+      hit = true;
+      if (e > 1e-6) { lx = qx + (nx / e) * radius; lz = qz + (nz / e) * radius; }
+      else { // centro já dentro do retângulo (não deveria acontecer): sai pela face mais próxima
+        const out = [lx + st.halfW, st.halfW - lx, st.zEnd - lz]; // esquerda, direita, frente
+        const k = out.indexOf(Math.min(...out));
+        if (k === 0) lx = -st.halfW - radius; else if (k === 1) lx = st.halfW + radius; else lz = st.zEnd + radius;
+      }
+    }
+  }
+  if (hit) { // referencial da casa -> mundo
+    pos.x = TOAD_SITE.x + lx * c + lz * s;
+    pos.z = TOAD_SITE.z - lx * s + lz * c;
+  }
+  return pos;
+}
+
+// Platôs: o terreno fica plano sob cada construção (retângulo + margem) e se mistura aos morros em volta.
+// Altura do platô = altura do topo do morro, então o morro não cresce nem encolhe.
+// x, z, yaw, hw, hd e blend em unidades LOCAIS da ilha; hw = meia-largura, hd = meia-profundidade.
+const PLATEAUS = [
+  { // castelo
+    x: PEAK.x, z: PEAK.z, yaw: CASTLE_SITE.yaw,
+    hw: CASTLE_SITE.width / 2 / ISLAND_SCALE + 0.15,
+    hd: CASTLE_SITE.depth / 2 / ISLAND_SCALE + 0.17,
+    blend: 1.3, // largura da rampa até o morro natural
+    h: hillSum(PEAK.x, PEAK.z),
+  },
+  { // casa do Toad: cobre a base redonda e o caminho da frente
+    x: TOAD_HILL.x, z: TOAD_HILL.z, yaw: TOAD_SITE.yaw,
+    hw: TOAD_SITE.width / 2 / ISLAND_SCALE + 0.2,
+    hd: TOAD_SITE.depth / 2 / ISLAND_SCALE + 0.2,
+    blend: 0.8,
+    h: hillSum(TOAD_HILL.x, TOAD_HILL.z),
+  },
+];
+
 function heightLocal(x, z) {
-  // posição no referencial do castelo (rodado por yaw): lx = largura, lz = frente
-  const c = Math.cos(CASTLE_SITE.yaw), s = Math.sin(CASTLE_SITE.yaw);
-  const dx = x - PEAK.x, dz = z - PEAK.z;
-  const lx = dx * c - dz * s, lz = dx * s + dz * c;
-  const sd = Math.hypot(Math.max(Math.abs(lx) - PLATEAU.hw, 0), Math.max(Math.abs(lz) - PLATEAU.hd, 0)); // distância ao retângulo
-  const w = 1 - THREE.MathUtils.smoothstep(sd, 0, PLATEAU.blend); // 1 sob o castelo, 0 longe
-  const h = THREE.MathUtils.lerp(hillSum(x, z), PLATEAU.h, w);
+  let h = hillSum(x, z);
+  for (const p of PLATEAUS) {
+    // posição no referencial da construção (rodado por yaw): lx = largura, lz = frente
+    const c = Math.cos(p.yaw), s = Math.sin(p.yaw);
+    const dx = x - p.x, dz = z - p.z;
+    const lx = dx * c - dz * s, lz = dx * s + dz * c;
+    const sd = Math.hypot(Math.max(Math.abs(lx) - p.hw, 0), Math.max(Math.abs(lz) - p.hd, 0)); // distância ao retângulo
+    const w = 1 - THREE.MathUtils.smoothstep(sd, 0, p.blend); // 1 sob a construção, 0 longe
+    h = THREE.MathUtils.lerp(h, p.h, w);
+  }
   const u = Math.hypot(x, z) / (outline(Math.atan2(-z, x)) + 0.1); // 0 no centro, 1 na borda da grama
   return h * (1 - THREE.MathUtils.smoothstep(u, 0.84, 0.97));      // zero na borda: emenda com a lateral
 }
