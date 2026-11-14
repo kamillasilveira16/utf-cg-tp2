@@ -116,14 +116,15 @@ export const TOAD_SITE = {
   stairs: { halfW: 212 * TOAD_SCALE, zEnd: 536 * TOAD_SCALE },
 };
 
-// Empurra um ponto (x, z do mundo) para fora da casa do Toad (círculo da base + retângulo da escada), tratando
-// o Mario como um círculo de raio `radius`. O empurrão sai pela normal, então ele contorna a casa em vez de travar.
-export function collideWithToadHouse(pos, radius = 0.35) {
-  const c = Math.cos(TOAD_SITE.yaw), s = Math.sin(TOAD_SITE.yaw);
+// Empurra um ponto (x, z do mundo) para fora de uma casa "círculo + escada" (casa do Toad ou do Luigi),
+// tratando o Mario como um círculo de raio `radius`. O empurrão sai pela normal, então ele contorna a casa
+// em vez de travar. `site` precisa de x, z, yaw, colliderRadius e stairs { halfW, zEnd }.
+function collideRoundHouse(site, pos, radius) {
+  const c = Math.cos(site.yaw), s = Math.sin(site.yaw);
   // mundo -> referencial da casa (mesma rotação usada em heightLocal): lx = direita, lz = frente (escada)
-  const dx = pos.x - TOAD_SITE.x, dz = pos.z - TOAD_SITE.z;
+  const dx = pos.x - site.x, dz = pos.z - site.z;
   let lx = dx * c - dz * s, lz = dx * s + dz * c;
-  const { colliderRadius: R, stairs: st } = TOAD_SITE;
+  const { colliderRadius: R, stairs: st } = site;
   let hit = false;
   for (let pass = 0; pass < 3; pass++) { // várias passadas: no canto entre o círculo e a escada um empurrão pode levar ao outro
     // 1) base redonda
@@ -146,11 +147,29 @@ export function collideWithToadHouse(pos, radius = 0.35) {
     }
   }
   if (hit) { // referencial da casa -> mundo
-    pos.x = TOAD_SITE.x + lx * c + lz * s;
-    pos.z = TOAD_SITE.z - lx * s + lz * c;
+    pos.x = site.x + lx * c + lz * s;
+    pos.z = site.z - lx * s + lz * c;
   }
   return pos;
 }
+export const collideWithToadHouse = (pos, radius = 0.35) => collideRoundHouse(TOAD_SITE, pos, radius);
+
+// Casa do Luigi: no morro marcado com name: 'luigi', virada para o centro da ilha. Modelo em .obj com
+// ~10 x 11 x 10 unidades; o pivô e a rotação que põem a frente em +Z estão em luigihouse.js.
+const LUIGI_HILL = HILLS.find((h) => h.name === 'luigi');
+const LUIGI_SCALE = 0.5; // unidades do modelo -> mundo (a casa fica com ~5,6 de altura)
+export const LUIGI_SITE = {
+  x: LUIGI_HILL.x * ISLAND_SCALE,
+  z: LUIGI_HILL.z * ISLAND_SCALE,
+  yaw: Math.atan2(-LUIGI_HILL.x, -LUIGI_HILL.z), // frente (+Z do modelo: porta e degraus) para o centro da ilha
+  scale: LUIGI_SCALE,
+  // colisão: a casa é decorativa e é bloqueada inteira, medida no modelo a partir do pivô (centro das paredes):
+  //  - um círculo com as paredes e o beiral do telhado (raio 4,4; as paredes sozinhas têm 3,7)
+  //  - um retângulo na frente com a varanda e os degraus (meia-largura 2,9, do centro até z = 5,2)
+  colliderRadius: 4.4 * LUIGI_SCALE,
+  stairs: { halfW: 2.9 * LUIGI_SCALE, zEnd: 5.2 * LUIGI_SCALE },
+};
+export const collideWithLuigiHouse = (pos, radius = 0.35) => collideRoundHouse(LUIGI_SITE, pos, radius);
 
 // Platôs: o terreno fica plano sob cada construção (retângulo + margem) e se mistura aos morros em volta.
 // Altura do platô = altura do topo do morro, então o morro não cresce nem encolhe.
@@ -169,6 +188,13 @@ const PLATEAUS = [
     hd: TOAD_SITE.depth / 2 / ISLAND_SCALE + 0.2,
     blend: 0.8,
     h: hillSum(TOAD_HILL.x, TOAD_HILL.z),
+  },
+  { // casa do Luigi: cobre o círculo das paredes e a escada da frente
+    x: LUIGI_HILL.x, z: LUIGI_HILL.z, yaw: LUIGI_SITE.yaw,
+    hw: LUIGI_SITE.colliderRadius / ISLAND_SCALE + 0.15,
+    hd: LUIGI_SITE.stairs.zEnd / ISLAND_SCALE + 0.15,
+    blend: 0.8,
+    h: hillSum(LUIGI_HILL.x, LUIGI_HILL.z),
   },
 ];
 
