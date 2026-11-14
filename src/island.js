@@ -97,6 +97,28 @@ export function collideWithCastle(pos, radius = 0.35) {
   return pos;
 }
 
+// Peach: em pé em frente à porta do castelo, de frente para quem chega (mesma direção da porta).
+// A posição é dada no referencial do castelo, em unidades do MUNDO: x = direita (a porta fica em x ≈ 0),
+// z = frente. A face da porta está em z ≈ 4,7 e o beiral da frente em z ≈ 5,7.
+const PEACH_LOCAL = { x: 0, z: 5.9 };
+export const PEACH_SITE = {
+  x: CASTLE_SITE.x + PEACH_LOCAL.x * Math.cos(CASTLE_SITE.yaw) + PEACH_LOCAL.z * Math.sin(CASTLE_SITE.yaw),
+  z: CASTLE_SITE.z - PEACH_LOCAL.x * Math.sin(CASTLE_SITE.yaw) + PEACH_LOCAL.z * Math.cos(CASTLE_SITE.yaw),
+  yaw: CASTLE_SITE.yaw,
+  height: 1.6,           // altura da Peach no mundo, com a coroa (o Mario tem 1,4)
+  colliderRadius: 0.5,   // a saia dela é larga: círculo no chão
+};
+
+// Empurra um ponto (x, z do mundo) para fora da Peach (círculo), tratando o Mario como um círculo de raio `radius`.
+export function collideWithPeach(pos, radius = 0.35) {
+  const dx = pos.x - PEACH_SITE.x, dz = pos.z - PEACH_SITE.z, d = Math.hypot(dx, dz);
+  const min = PEACH_SITE.colliderRadius + radius;
+  if (d >= min) return pos;
+  if (d > 1e-6) { pos.x = PEACH_SITE.x + (dx / d) * min; pos.z = PEACH_SITE.z + (dz / d) * min; }
+  else pos.x = PEACH_SITE.x + min;
+  return pos;
+}
+
 // Casa do Toad: no morro marcado com name: 'toad', virada para o centro da ilha. A origem do modelo é o
 // centro da casa; a base redonda (com o caminho na frente) tem 849 x 960 unidades do modelo.
 const TOAD_HILL = HILLS.find((h) => h.name === 'toad');

@@ -7,6 +7,7 @@ import { loadMario } from './mario.js';
 import { loadCastle } from './castle.js';
 import { loadToadHouse } from './toadhouse.js';
 import { loadLuigiHouse } from './luigihouse.js';
+import { loadPeach } from './peach.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff);
@@ -39,6 +40,9 @@ loadToadHouse().then((h) => island.group.add(h)).catch(console.error);
 
 // casa do Luigi no morro do Luigi
 loadLuigiHouse().then((h) => island.group.add(h)).catch(console.error);
+
+// Peach em frente à porta do castelo
+loadPeach().then((p) => island.group.add(p)).catch(console.error);
 
 setupInput({ onCamera: cameras.select });
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });

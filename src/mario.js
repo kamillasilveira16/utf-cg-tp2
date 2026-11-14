@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioAnimations.js';
-import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, groundHeight } from './island.js';
+import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, groundHeight } from './island.js';
 import { keys, consumePress } from './input.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
@@ -91,6 +91,7 @@ export async function loadMario() {
       collideWithCastle(group.position, RADIUS); // o castelo é decorativo: não dá para entrar
       collideWithToadHouse(group.position, RADIUS); // a casa do Toad também
       collideWithLuigiHouse(group.position, RADIUS); // e a casa do Luigi
+      collideWithPeach(group.position, RADIUS); // e a Peach
       clampToIsland(group.position);
 
       // --- pulo: o Y do grupo é a altura do Mario no mundo; o chão é o relevo sob ele ---
