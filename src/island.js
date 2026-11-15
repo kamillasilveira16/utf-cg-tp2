@@ -176,6 +176,28 @@ function collideRoundHouse(site, pos, radius) {
 }
 export const collideWithToadHouse = (pos, radius = 0.35) => collideRoundHouse(TOAD_SITE, pos, radius);
 
+// Capitão Toad: no caminho, um pouco à frente da escada da casa do Toad (fora da área de colisão da casa), de frente
+// para quem chega (mesma direção da casa). A posição é dada no modelo da casa (unidades do modelo): x = direita (o
+// caminho fica em x ≈ 0), z = frente (a escada termina em z ≈ 536).
+const CAPTAIN_LOCAL = { x: 0, z: 650 };
+export const CAPTAIN_TOAD_SITE = {
+  x: TOAD_SITE.x + (CAPTAIN_LOCAL.x * Math.cos(TOAD_SITE.yaw) + CAPTAIN_LOCAL.z * Math.sin(TOAD_SITE.yaw)) * TOAD_SCALE,
+  z: TOAD_SITE.z + (-CAPTAIN_LOCAL.x * Math.sin(TOAD_SITE.yaw) + CAPTAIN_LOCAL.z * Math.cos(TOAD_SITE.yaw)) * TOAD_SCALE,
+  yaw: TOAD_SITE.yaw,
+  height: 1.1,         // altura dele no mundo, com o capacete (o Mario tem 1,4)
+  colliderRadius: 0.45, // corpo, mochila e o joelho levantado: círculo no chão
+};
+
+// Empurra um ponto (x, z do mundo) para fora do Capitão Toad (círculo), tratando o Mario como um círculo de raio `radius`.
+export function collideWithCaptainToad(pos, radius = 0.35) {
+  const dx = pos.x - CAPTAIN_TOAD_SITE.x, dz = pos.z - CAPTAIN_TOAD_SITE.z, d = Math.hypot(dx, dz);
+  const min = CAPTAIN_TOAD_SITE.colliderRadius + radius;
+  if (d >= min) return pos;
+  if (d > 1e-6) { pos.x = CAPTAIN_TOAD_SITE.x + (dx / d) * min; pos.z = CAPTAIN_TOAD_SITE.z + (dz / d) * min; }
+  else pos.x = CAPTAIN_TOAD_SITE.x + min;
+  return pos;
+}
+
 // Casa do Luigi: no morro marcado com name: 'luigi', virada para o centro da ilha. Modelo em .obj com
 // ~10 x 11 x 10 unidades; o pivô e a rotação que põem a frente em +Z estão em luigihouse.js.
 const LUIGI_HILL = HILLS.find((h) => h.name === 'luigi');

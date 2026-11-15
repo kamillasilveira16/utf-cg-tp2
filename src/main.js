@@ -8,6 +8,7 @@ import { loadCastle } from './castle.js';
 import { loadToadHouse } from './toadhouse.js';
 import { loadLuigiHouse } from './luigihouse.js';
 import { loadPeach } from './peach.js';
+import { loadCaptainToad } from './captaintoad.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff);
@@ -43,6 +44,9 @@ loadLuigiHouse().then((h) => island.group.add(h)).catch(console.error);
 
 // Peach em frente à porta do castelo
 loadPeach().then((p) => island.group.add(p)).catch(console.error);
+
+// Capitão Toad em frente à porta da casa do Toad
+loadCaptainToad().then((t) => island.group.add(t)).catch(console.error);
 
 setupInput({ onCamera: cameras.select });
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });
