@@ -215,6 +215,28 @@ export const LUIGI_SITE = {
 };
 export const collideWithLuigiHouse = (pos, radius = 0.35) => collideRoundHouse(LUIGI_SITE, pos, radius);
 
+// Luigi: em pé em frente à porta da casa dele, logo depois dos degraus (fora da área de colisão da casa), de frente
+// para quem chega (mesma direção da casa). A posição é dada no referencial da casa, em unidades do MUNDO:
+// x = direita, z = frente (a escada da colisão termina em z = LUIGI_SITE.stairs.zEnd).
+const LUIGI_LOCAL = { x: 0, z: LUIGI_SITE.stairs.zEnd + 0.7 };
+export const LUIGI_CHAR_SITE = {
+  x: LUIGI_SITE.x + LUIGI_LOCAL.x * Math.cos(LUIGI_SITE.yaw) + LUIGI_LOCAL.z * Math.sin(LUIGI_SITE.yaw),
+  z: LUIGI_SITE.z - LUIGI_LOCAL.x * Math.sin(LUIGI_SITE.yaw) + LUIGI_LOCAL.z * Math.cos(LUIGI_SITE.yaw),
+  yaw: LUIGI_SITE.yaw,
+  height: 1.6,         // altura dele no mundo, com o chapéu (o Luigi é mais alto que o Mario, que tem 1,4)
+  colliderRadius: 0.4, // corpo e mochila: círculo no chão
+};
+
+// Empurra um ponto (x, z do mundo) para fora do Luigi (círculo), tratando o Mario como um círculo de raio `radius`.
+export function collideWithLuigi(pos, radius = 0.35) {
+  const dx = pos.x - LUIGI_CHAR_SITE.x, dz = pos.z - LUIGI_CHAR_SITE.z, d = Math.hypot(dx, dz);
+  const min = LUIGI_CHAR_SITE.colliderRadius + radius;
+  if (d >= min) return pos;
+  if (d > 1e-6) { pos.x = LUIGI_CHAR_SITE.x + (dx / d) * min; pos.z = LUIGI_CHAR_SITE.z + (dz / d) * min; }
+  else pos.x = LUIGI_CHAR_SITE.x + min;
+  return pos;
+}
+
 // Platôs: o terreno fica plano sob cada construção (retângulo + margem) e se mistura aos morros em volta.
 // Altura do platô = altura do topo do morro, então o morro não cresce nem encolhe.
 // x, z, yaw, hw, hd e blend em unidades LOCAIS da ilha; hw = meia-largura, hd = meia-profundidade.
