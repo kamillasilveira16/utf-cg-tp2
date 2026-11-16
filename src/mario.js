@@ -3,6 +3,7 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioAnimations.js';
 import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad, collideWithLuigi, collideWithPiranhas, groundHeight } from './island.js';
 import { keys, consumePress } from './input.js';
+import { collideWithYoshi } from './yoshi.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
 const BASE = new URL('../assets/mario/', import.meta.url).href;
@@ -95,6 +96,7 @@ export async function loadMario() {
       collideWithCaptainToad(group.position, RADIUS); // e o Capitão Toad
       collideWithLuigi(group.position, RADIUS); // e o Luigi
       collideWithPiranhas(group.position, RADIUS); // e as plantas carnívoras
+      collideWithYoshi(group.position, RADIUS); // e o Yoshi (onde ele estiver)
       clampToIsland(group.position);
 
       // --- pulo: o Y do grupo é a altura do Mario no mundo; o chão é o relevo sob ele ---

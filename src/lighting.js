@@ -33,7 +33,8 @@ export function createLights(scene) {
 
 // propriedades copiadas de um material para o outro nas conversões
 function copyCommon(from, to) {
-  for (const k of ['map', 'alphaMap', 'alphaTest', 'transparent', 'opacity', 'side', 'vertexColors', 'depthWrite', 'name']) {
+  for (const k of ['map', 'alphaMap', 'alphaTest', 'transparent', 'opacity', 'side', 'vertexColors', 'depthWrite', 'name',
+    'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits']) {
     if (from[k] !== undefined) to[k] = from[k];
   }
   if (from.color) to.color.copy(from.color);

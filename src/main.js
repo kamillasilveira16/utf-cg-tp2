@@ -11,6 +11,7 @@ import { loadPeach } from './peach.js';
 import { loadCaptainToad } from './captaintoad.js';
 import { loadLuigi } from './luigi.js';
 import { loadPiranhaPlants } from './piranha.js';
+import { loadYoshi } from './yoshi.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff);
@@ -62,7 +63,14 @@ loadCaptainToad().then((t) => island.group.add(lighting.register(t, MATERIALS.pe
 // Luigi em frente à porta da casa dele
 loadLuigi().then((l) => island.group.add(lighting.register(l, MATERIALS.personagem))).catch(console.error);
 
-setupInput({ onCamera: cameras.select, onLighting: lighting.toggle });
+// Yoshi: o personagem com 3 poses (tecla P), cada uma ao lado de um personagem (ver yoshi.js)
+let yoshi = null;
+loadYoshi().then((y) => {
+  yoshi = y;
+  island.group.add(lighting.register(y.group, MATERIALS.personagem));
+}).catch(console.error);
+
+setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => yoshi?.nextPose() });
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });
 
 const clock = new THREE.Clock();
@@ -70,6 +78,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime; // limita dt: depois de uma aba em segundo plano o Mario não atravessa o castelo num quadro só
   island.update(t);
   if (piranhas) piranhas.update(t);
+  if (yoshi) yoshi.update(dt);
   if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario
   cameras.update(dt);
   renderer.render(scene, cameras.camera);
