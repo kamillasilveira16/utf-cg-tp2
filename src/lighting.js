@@ -20,6 +20,7 @@ export const MATERIALS = {
   construcao:  { specular: 0x2a2a2a, shininess: 12 }, // pedra e tijolo: brilho fraco e espalhado
   casa:        { specular: 0x3a3a3a, shininess: 25 }, // casas pintadas: um pouco mais lisas
   personagem:  { specular: 0x555555, shininess: 45 }, // roupas, pele e luvas dos personagens: brilho mais marcado
+  planta:      { specular: 0x777777, shininess: 70 }, // cabeça das plantas carnívoras: lisa e brilhante
 };
 
 export function createLights(scene) {

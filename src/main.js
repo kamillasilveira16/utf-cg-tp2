@@ -10,6 +10,7 @@ import { loadLuigiHouse } from './luigihouse.js';
 import { loadPeach } from './peach.js';
 import { loadCaptainToad } from './captaintoad.js';
 import { loadLuigi } from './luigi.js';
+import { loadPiranhaPlants } from './piranha.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff);
@@ -27,6 +28,13 @@ const cameras = createCameras(renderer);
 const island = createIsland();
 scene.add(island.group);
 lighting.register(island.group, MATERIALS.terreno);
+
+// plantas carnívoras: o objeto hierárquico (ver piranha.js)
+let piranhas = null;
+loadPiranhaPlants().then((p) => {
+  piranhas = p;
+  island.group.add(lighting.register(p.group, MATERIALS.planta));
+}).catch(console.error);
 
 // personagem (carrega de forma assíncrona; a cena já roda enquanto o modelo baixa)
 let mario = null;
@@ -61,6 +69,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime; // limita dt: depois de uma aba em segundo plano o Mario não atravessa o castelo num quadro só
   island.update(t);
+  if (piranhas) piranhas.update(t);
   if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario
   cameras.update(dt);
   renderer.render(scene, cameras.camera);

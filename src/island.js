@@ -27,7 +27,7 @@ const HILLS = [
   { x:  2.3, z:  1.1, r: 1.4, h: 0.48, name: '' },
   { x: -0.2, z:  2.9, r: 1.1, h: 0.34, name: 'luigi' },
   { x:  3.0, z: -2.3, r: 1.2, h: 0.29, name: 'toad' },
-  { x: -3.0, z:  1.8, r: 1.0, h: 0.21, name: '' },
+  { x: -3.0, z:  1.8, r: 1.0, h: 0.21, name: 'piranha' }, // planta carnívora no topo
 ];
 
 // soma dos morros (sem platô nem borda)
@@ -116,6 +116,29 @@ export function collideWithPeach(pos, radius = 0.35) {
   if (d >= min) return pos;
   if (d > 1e-6) { pos.x = PEACH_SITE.x + (dx / d) * min; pos.z = PEACH_SITE.z + (dz / d) * min; }
   else pos.x = PEACH_SITE.x + min;
+  return pos;
+}
+
+// Plantas carnívoras (ver piranha.js): no topo do morro 'piranha', à esquerda do castelo, virada para o centro da
+// ilha. Para pôr mais plantas, acrescente itens: { hill: 'nome do morro' } ou { x, z } em unidades locais da ilha.
+const PIRANHA_LOCAL = [
+  { hill: 'piranha' },
+];
+export const PIRANHA_SITES = PIRANHA_LOCAL.map((p) => {
+  const h = p.hill ? HILLS.find((m) => m.name === p.hill) : p;
+  const x = h.x * ISLAND_SCALE, z = h.z * ISLAND_SCALE;
+  // a boca do modelo aponta para -X: o giro em Y que leva -X para a direção do centro da ilha
+  return { x, z, yaw: Math.atan2(-z, x), colliderRadius: 0.75 }; // círculo de colisão: o cano
+});
+
+// Empurra um ponto (x, z do mundo) para fora das plantas carnívoras (círculos), tratando o Mario como um círculo.
+export function collideWithPiranhas(pos, radius = 0.35) {
+  for (const s of PIRANHA_SITES) {
+    const dx = pos.x - s.x, dz = pos.z - s.z, d = Math.hypot(dx, dz), min = s.colliderRadius + radius;
+    if (d >= min) continue;
+    if (d > 1e-6) { pos.x = s.x + (dx / d) * min; pos.z = s.z + (dz / d) * min; }
+    else pos.x = s.x + min;
+  }
   return pos;
 }
 
