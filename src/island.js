@@ -279,7 +279,64 @@ export const FLAG_SITE = {
 };
 export const collideWithFlag = (pos, radius = 0.35) => pushOutOfCircle(FLAG_SITE, pos, radius);
 
-// Árvores (ver trees.js): TREE_COUNT árvores espalhadas pela grama, em lugares livres e longe dos personagens.
+// ESTRADAS DE TERRA (ver roads.js): saem de uma pracinha de terra no centro da ilha e vão até a porta de cada casa
+// (castelo da Peach, casa do Toad e casa do Luigi). Como as casas estão viradas para o centro, cada estrada segue o
+// eixo da porta, com uma curva suave em "S" no meio e um trecho reto no fim, chegando de frente na porta. Elas
+// passam por baixo dos personagens que estão na frente das portas.
+// REGRA PARA OBJETOS NOVOS: nada pode ficar em cima de uma estrada, só personagens. Para escolher o lugar de um
+// objeto, teste com isOnRoad(x, z, folga) (as árvores já fazem isso).
+export const ROAD_WIDTH = 1.7;   // largura da estrada (mundo)
+export const PLAZA_RADIUS = 2.6; // raio da pracinha no centro
+const ROAD_STEP = 0.3;           // distância entre os pontos da linha central
+const ROAD_TO_DOORS = [          // { casa, z da porta no referencial da casa (frente = +z), curva do "S" }
+  { site: CASTLE_SITE, door: 4.75, bend: 1.4 },            // face da porta do castelo (ver PEACH_LOCAL)
+  { site: TOAD_SITE, door: TOAD_SITE.stairs.zEnd, bend: -1.2 },  // pé da escada da casa do Toad
+  { site: LUIGI_SITE, door: LUIGI_SITE.stairs.zEnd, bend: 1.2 }, // pé dos degraus da casa do Luigi
+];
+// cada estrada é uma lista de pontos { x, z } da linha central, do centro da ilha até a porta
+export const ROADS = ROAD_TO_DOORS.map(({ site, door, bend }) => {
+  const fx = Math.sin(site.yaw), fz = Math.cos(site.yaw); // frente da casa no mundo (+z do referencial dela)
+  const at = (d) => ({ x: site.x + fx * d, z: site.z + fz * d });
+  const doorPt = at(door), approach = at(door + 3.5);     // os últimos 3,5 de estrada são retos, de frente na porta
+  const len = Math.hypot(approach.x, approach.z), px = -approach.z / len, pz = approach.x / len; // perpendicular
+  const pts = [];
+  const n = Math.ceil(len / ROAD_STEP);
+  for (let i = 0; i <= n; i++) {
+    // "S" que começa e acaba reto; em estradas curtas a curva diminui, senão ela fica fechada demais e a faixa dobra
+    const t = i / n, off = bend * Math.min(1, len / 16) * Math.sin(2 * Math.PI * t) * Math.sin(Math.PI * t);
+    pts.push({ x: approach.x * t + px * off, z: approach.z * t + pz * off });
+  }
+  const m = Math.ceil(3.5 / ROAD_STEP);
+  for (let i = 1; i <= m; i++) {
+    const t = i / m;
+    pts.push({ x: approach.x + (doorPt.x - approach.x) * t, z: approach.z + (doorPt.z - approach.z) * t });
+  }
+  return pts;
+});
+// altura da superfície da estrada acima do chão (ver roads.js)
+export const ROAD_LIFT = 0.06;
+// Altura onde um personagem pisa em (x, z): o chão ou, em cima de uma estrada, a superfície dela. Use para posicionar
+// personagens (com groundHeight os pés ficariam ROAD_LIFT para dentro da estrada).
+export function standHeight(x, z) {
+  return groundHeight(x, z) + (isOnRoad(x, z) ? ROAD_LIFT : 0);
+}
+
+// true se (x, z) está numa estrada ou na pracinha, ou a menos de `margin` delas
+export function isOnRoad(x, z, margin = 0) {
+  if (Math.hypot(x, z) < PLAZA_RADIUS + margin) return true;
+  const lim = ROAD_WIDTH / 2 + margin;
+  for (const road of ROADS) {
+    for (let i = 1; i < road.length; i++) {
+      const a = road[i - 1], b = road[i], ex = b.x - a.x, ez = b.z - a.z;
+      const t = THREE.MathUtils.clamp(((x - a.x) * ex + (z - a.z) * ez) / (ex * ex + ez * ez), 0, 1);
+      if (Math.hypot(x - a.x - ex * t, z - a.z - ez * t) < lim) return true;
+    }
+  }
+  return false;
+}
+
+// Árvores (ver trees.js): TREE_COUNT árvores espalhadas pela grama, em lugares livres, fora das estradas e longe
+// dos personagens.
 // Os lugares são escolhidos uma vez, ao carregar: numa grade de candidatos livres, pega o primeiro e depois, a cada
 // vez, o candidato mais longe de todos os já escolhidos (assim elas ficam bem espalhadas). Como tudo é determinístico,
 // as árvores ficam sempre nos mesmos lugares.
@@ -287,7 +344,7 @@ const TREE_COUNT = 8;
 const TREE_CLEARANCE = 1.6;   // espaço livre em volta do tronco (a copa não pode entrar nas construções)
 const TREE_KEEP_AWAY = [      // [x, z, distância mínima]: personagens (e os lugares do Yoshi do lado deles) e o Mario
   [PEACH_SITE.x, PEACH_SITE.z, 4.5], [CAPTAIN_TOAD_SITE.x, CAPTAIN_TOAD_SITE.z, 4.5],
-  [LUIGI_CHAR_SITE.x, LUIGI_CHAR_SITE.z, 4.5], [2.5 * ISLAND_SCALE, -1.5 * ISLAND_SCALE, 3], // início do Mario
+  [LUIGI_CHAR_SITE.x, LUIGI_CHAR_SITE.z, 4.5], [0, 0, 3], // início do Mario (centro da pracinha)
   [FLAG_SITE.x, FLAG_SITE.z, 3.5],
 ];
 function treeSpotFree(x, z) {
@@ -298,6 +355,7 @@ function treeSpotFree(x, z) {
   }
   p.set(x, 0, z); clampToIsland(p, 2.2);
   if (Math.abs(p.x - x) > 1e-6 || Math.abs(p.z - z) > 1e-6) return false;
+  if (isOnRoad(x, z, 1.5)) return false; // fora das estradas (com folga para a copa)
   return TREE_KEEP_AWAY.every(([ax, az, d]) => Math.hypot(x - ax, z - az) >= d);
 }
 export const TREE_SITES = (() => {

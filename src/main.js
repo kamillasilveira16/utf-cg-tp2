@@ -16,6 +16,7 @@ import { loadSky } from './sky.js';
 import { WIND } from './wind.js';
 import { createTrees } from './trees.js';
 import { loadFlag } from './flag.js';
+import { createRoads } from './roads.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff); // aparece só até o céu carregar
@@ -66,6 +67,9 @@ loadCaptainToad().then((t) => island.group.add(lighting.register(t, MATERIALS.pe
 
 // Luigi em frente à porta da casa dele
 loadLuigi().then((l) => island.group.add(lighting.register(l, MATERIALS.personagem))).catch(console.error);
+
+// estradas de terra do centro até a porta de cada casa (ver roads.js)
+island.group.add(lighting.register(createRoads(), MATERIALS.terreno));
 
 // árvores low-poly (as copas balançam com o vento, ver trees.js e wind.js)
 island.group.add(lighting.register(createTrees(), MATERIALS.arvore));

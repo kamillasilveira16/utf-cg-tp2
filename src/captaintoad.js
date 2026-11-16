@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
-import { CAPTAIN_TOAD_SITE as SITE, groundHeight } from './island.js';
+import { CAPTAIN_TOAD_SITE as SITE, standHeight } from './island.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
 const BASE = new URL('../assets/captaintoad/', import.meta.url).href;
@@ -158,7 +158,7 @@ export async function loadCaptainToad() {
   toad.add(model);
   toad.scale.setScalar(SITE.height / MODEL_HEIGHT);
   toad.rotation.y = SITE.yaw; // a frente do modelo é +Z
-  toad.position.set(SITE.x, groundHeight(SITE.x, SITE.z), SITE.z);
+  toad.position.set(SITE.x, standHeight(SITE.x, SITE.z), SITE.z); // em cima da estrada
   // para trocar a pose depois de carregado: toad.userData.setPose('relaxed')
   toad.userData.setPose = (pose) => setPose(model, pose);
   return toad;

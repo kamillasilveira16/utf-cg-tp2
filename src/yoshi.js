@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import {
-  PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, groundHeight, clampToIsland,
+  PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, standHeight, clampToIsland,
   collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad,
   collideWithLuigi, collideWithPiranhas, collideWithFlag, collideWithTrees,
 } from './island.js';
@@ -333,7 +333,7 @@ export async function loadYoshi() {
   // estado
   let spot = 0, path = null, seg = 0, phase = 0;
   const place = (s) => {
-    yoshi.position.set(s.x, groundHeight(s.x, s.z), s.z);
+    yoshi.position.set(s.x, standHeight(s.x, s.z), s.z);
     yoshi.rotation.y = s.yaw;
     setStaticPose(s.pose);
     current = { x: s.x, z: s.z, radius: s.radius };
@@ -364,7 +364,7 @@ export async function loadYoshi() {
           step = 0;
         }
       }
-      yoshi.position.y = groundHeight(yoshi.position.x, yoshi.position.z);
+      yoshi.position.y = standHeight(yoshi.position.x, yoshi.position.z); // chão ou estrada
       // passadas: acompanham a velocidade, até um limite (acima dele os pés escorregam um pouco, estilo desenho)
       const cycles = Math.min(YOSHI_SPEED / 0.7, RUN_CYCLE_MAX);
       phase += dt * cycles * Math.PI * 2;

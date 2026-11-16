@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
-import { PEACH_SITE, groundHeight } from './island.js';
+import { PEACH_SITE, standHeight } from './island.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
 const BASE = new URL('../assets/peach/', import.meta.url).href;
@@ -136,7 +136,7 @@ export async function loadPeach() {
   peach.add(model);
   peach.scale.setScalar(PEACH_SITE.height / MODEL_HEIGHT);
   peach.rotation.y = PEACH_SITE.yaw; // a frente do modelo é +Z
-  peach.position.set(PEACH_SITE.x, groundHeight(PEACH_SITE.x, PEACH_SITE.z) - SINK, PEACH_SITE.z);
+  peach.position.set(PEACH_SITE.x, standHeight(PEACH_SITE.x, PEACH_SITE.z) - SINK, PEACH_SITE.z);
   // para trocar a pose depois de carregada: peach.userData.setPose('wave')
   peach.userData.setPose = (pose) => setPose(model, pose);
 

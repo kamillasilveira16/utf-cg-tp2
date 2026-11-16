@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioAnimations.js';
-import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad, collideWithLuigi, collideWithPiranhas, collideWithFlag, collideWithTrees, groundHeight } from './island.js';
+import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad, collideWithLuigi, collideWithPiranhas, collideWithFlag, collideWithTrees, standHeight } from './island.js';
 import { keys, consumePress } from './input.js';
 import { collideWithYoshi } from './yoshi.js';
 
@@ -20,7 +20,7 @@ const CYCLE_HZ = 2.5;       // ciclos de corrida por segundo (1 ciclo = 2 passos
 const RADIUS = 0.35;        // raio de colisão do Mario (círculo no chão) contra o castelo
 const ACCEL = 10;           // quão rápido acelera/freia
 const TURN_RATE = 12;       // quão rápido vira para a direção do movimento
-const START = new THREE.Vector3(2.5 * ISLAND_SCALE, 0, -1.5 * ISLAND_SCALE); // ponto inicial (x, z); o y vem do relevo
+const START = new THREE.Vector3(0, 0, 0); // ponto inicial (x, z): o centro da pracinha onde as estradas se encontram; o y vem do relevo
 
 // pulo (barra de espaço). Em vez de chutar gravidade e velocidade, definimos o que queremos ver
 // (altura e tempo de subida) e derivamos o resto: h = g*t²/2  e  v0 = g*t
@@ -63,7 +63,7 @@ export async function loadMario() {
   group.add(model);
 
   group.position.copy(START);
-  group.position.y = groundHeight(START.x, START.z);
+  group.position.y = standHeight(START.x, START.z);
 
   const anim = createRunAnimation(model);
   const moveDir = new THREE.Vector3(0, 0, 1);
@@ -102,7 +102,7 @@ export async function loadMario() {
       clampToIsland(group.position);
 
       // --- pulo: o Y do grupo é a altura do Mario no mundo; o chão é o relevo sob ele ---
-      const ground = groundHeight(group.position.x, group.position.z);
+      const ground = standHeight(group.position.x, group.position.z); // chão ou estrada
       // consome o toque todo quadro (mesmo no ar) e guarda um instante: pulo "adiantado" funciona
       jumpBuf = consumePress('Space') ? JUMP_BUFFER : Math.max(0, jumpBuf - dt);
       if (onGround && jumpBuf > 0) { vy = JUMP_SPEED; onGround = false; jumpBuf = 0; }

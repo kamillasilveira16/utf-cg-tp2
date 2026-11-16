@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
-import { LUIGI_CHAR_SITE as SITE, groundHeight } from './island.js';
+import { LUIGI_CHAR_SITE as SITE, standHeight } from './island.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
 const BASE = new URL('../assets/luigi/', import.meta.url).href;
@@ -212,7 +212,7 @@ export async function loadLuigi() {
   luigi.add(holder);
   luigi.scale.setScalar(SITE.height / height);
   luigi.rotation.y = SITE.yaw; // a frente do modelo é +Z
-  luigi.position.set(SITE.x, groundHeight(SITE.x, SITE.z), SITE.z);
+  luigi.position.set(SITE.x, standHeight(SITE.x, SITE.z), SITE.z); // em cima da estrada
   // para trocar depois de carregado: luigi.userData.setPose('relaxed') e luigi.userData.setFace('normal')
   luigi.userData.setPose = (pose) => setPose(model, pose);
   luigi.userData.setFace = (face) => setFace(model, face);
