@@ -69,15 +69,21 @@ export async function loadMario() {
   const moveDir = new THREE.Vector3(0, 0, 1);
   let speed = 0, facing = 0, phase = 0;
   let vy = 0, onGround = true, airW = 0, jumpBuf = 0, landT = LAND_TIME; // estado do pulo
+  let locked = false, lookTarget = null; // conversa: o Mario fica parado, virado para quem fala (ver dialogue.js)
   anim.pose(phase, { k: 0 });
 
   return {
     group,
     get onGround() { return onGround; },
+    // travado = ignora o teclado (durante uma conversa)
+    get locked() { return locked; },
+    set locked(v) { locked = v; if (!v) lookTarget = null; },
+    // vira para um ponto (x, z) enquanto estiver travado
+    lookAt(p) { lookTarget = { x: p.x, z: p.z }; },
     // heading: direção horizontal para onde a câmera olha (frente = (sin h, cos h))
     update(dt, heading = 0) {
-      const fwd = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
-      const side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+      const fwd = locked ? 0 : (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
+      const side = locked ? 0 : (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
       const sh = Math.sin(heading), ch = Math.cos(heading);
       // W = para onde a câmera olha; D = direita da câmera
       const mx = fwd * sh - side * ch, mz = fwd * ch + side * sh;
@@ -104,7 +110,7 @@ export async function loadMario() {
       // --- pulo: o Y do grupo é a altura do Mario no mundo; o chão é o relevo sob ele ---
       const ground = standHeight(group.position.x, group.position.z); // chão ou estrada
       // consome o toque todo quadro (mesmo no ar) e guarda um instante: pulo "adiantado" funciona
-      jumpBuf = consumePress('Space') ? JUMP_BUFFER : Math.max(0, jumpBuf - dt);
+      jumpBuf = consumePress('Space') && !locked ? JUMP_BUFFER : Math.max(0, jumpBuf - dt);
       if (onGround && jumpBuf > 0) { vy = JUMP_SPEED; onGround = false; jumpBuf = 0; }
       if (!onGround) {
         if (vy > 0 && !keys.has('Space')) vy = Math.min(vy, JUMP_SPEED * JUMP_CUT); // espaço solto: pulo curto
@@ -120,6 +126,10 @@ export async function loadMario() {
         const diff = Math.atan2(Math.sin(Math.atan2(moveDir.x, moveDir.z) - facing), Math.cos(Math.atan2(moveDir.x, moveDir.z) - facing));
         facing += diff * (1 - Math.exp(-TURN_RATE * dt));
         group.rotation.y = facing; // o modelo olha para +Z
+      } else if (lookTarget) { // conversando: vira para quem fala
+        const want = Math.atan2(lookTarget.x - group.position.x, lookTarget.z - group.position.z);
+        facing += Math.atan2(Math.sin(want - facing), Math.cos(want - facing)) * (1 - Math.exp(-TURN_RATE * dt));
+        group.rotation.y = facing;
       }
 
       // a animação acompanha a velocidade: parado = em pé; correndo = ciclo completo

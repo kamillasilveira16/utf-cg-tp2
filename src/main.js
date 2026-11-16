@@ -17,6 +17,8 @@ import { WIND } from './wind.js';
 import { createTrees } from './trees.js';
 import { loadFlag } from './flag.js';
 import { createRoads } from './roads.js';
+import { createDialogue } from './dialogue.js';
+import { PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, standHeight } from './island.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff); // aparece só até o céu carregar
@@ -29,6 +31,13 @@ document.body.appendChild(renderer.domElement);
 createLights(scene);
 const lighting = createLighting(scene); // modelo de Phong + tecla L (ver lighting.js)
 const cameras = createCameras(renderer);
+
+// conversa com os personagens: chegar perto + tecla E (ver dialogue.js)
+const dialogue = createDialogue();
+const at = (s) => { const p = new THREE.Vector3(s.x, standHeight(s.x, s.z), s.z); return () => p; }; // personagem parado
+dialogue.addTalker({ id: 'peach', name: 'Peach', position: at(PEACH_SITE), height: 1.6, radius: PEACH_SITE.colliderRadius });
+dialogue.addTalker({ id: 'toad', name: 'Capitão Toad', position: at(CAPTAIN_TOAD_SITE), height: 1.1, radius: CAPTAIN_TOAD_SITE.colliderRadius });
+dialogue.addTalker({ id: 'luigi', name: 'Luigi', position: at(LUIGI_CHAR_SITE), height: 1.6, radius: LUIGI_CHAR_SITE.colliderRadius });
 
 // mundo
 const island = createIsland();
@@ -48,6 +57,7 @@ loadMario().then((m) => {
   mario = m;
   island.group.add(lighting.register(m.group, MATERIALS.personagem));
   cameras.setFollowTarget(m.group);
+  dialogue.setPlayer(m);
 }).catch(console.error);
 
 // castelo da Peach no topo do morro mais alto
@@ -90,9 +100,11 @@ let yoshi = null;
 loadYoshi().then((y) => {
   yoshi = y;
   island.group.add(lighting.register(y.group, MATERIALS.personagem));
+  // o Yoshi anda: a posição é a atual, e só dá para conversar com ele parado
+  dialogue.addTalker({ id: 'yoshi', name: 'Yoshi', position: () => y.group.position, height: 1.7, radius: 0.5, available: () => !y.running });
 }).catch(console.error);
 
-setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => yoshi?.nextPose() });
+setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => { if (!dialogue.active) yoshi?.nextPose(); } }); // sem trocar de pose no meio da conversa
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });
 
 const clock = new THREE.Clock();
@@ -105,6 +117,8 @@ renderer.setAnimationLoop(() => {
   if (yoshi) yoshi.update(dt);
   if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario
   cameras.update(dt);
-  if (sky) sky.update(cameras.camera); // depois da câmera se mexer
-  renderer.render(scene, cameras.camera);
+  dialogue.update(dt, cameras.camera); // depois do Mario e da câmera: etiqueta "Falar", balões e câmera da conversa
+  const camera = dialogue.camera || cameras.camera;
+  if (sky) sky.update(camera); // depois da câmera se mexer
+  renderer.render(scene, camera);
 });
