@@ -12,15 +12,47 @@ import { consumePress } from './input.js';
 // A interface (etiqueta e balão) é feita em HTML por cima do canvas; o visual fica em css/style.css.
 // ----------------------------------------------------------------------------------------------------------
 
-// falas de cada personagem (um item por balão)
+// Falas de cada personagem, um item por balão. Peach, Toad e Luigi têm duas conversas: `alone` (sem o Yoshi) e
+// `withYoshi` (quando o Yoshi está parado do lado deles). Uma lista simples vale sempre (o Yoshi).
 export const LINES = {
-  peach: ['abacate', 'abacate', 'abacate'],
-  toad: ['abacate', 'abacate', 'abacate'],
-  luigi: ['abacate', 'abacate', 'abacate'],
-  yoshi: ['abacate', 'abacate', 'abacate'],
+  peach: {
+    alone: [
+      'Olá Mario, bem vindo ao meu castelo.',
+      'Ele veio direto do "Super Mario 64".',
+      'Será sempre um prazer te receber nele.',
+    ],
+    withYoshi: [
+      'Olá Mario, parece que seu amigo Yoshi está aqui.',
+      'Ele é meio fedido, mas é bonitinho haha.',
+    ],
+  },
+  toad: {
+    alone: [
+      'Ei Mario, olha a minha casa.',
+      'Ela é do "Super Mario 3D Land".',
+      'Muito bonita essas coisas dos jogos mais recentes.',
+    ],
+    withYoshi: [
+      'Mario! Vamos nessa!',
+      'O Yoshi e eu estamos prontos para a aventura.',
+    ],
+  },
+  luigi: {
+    alone: [
+      'Mario, me ajuda! Essa casa é de um jogo muito estranho.',
+      'Ele chama "Dance Dance Revolution: Mario Mix".',
+      'Acho que ela é assombrada.',
+    ],
+    withYoshi: [
+      'Mario! Espere por nós!',
+      'Eu e o Yoshi vamos com você.',
+    ],
+  },
+  yoshi: ['YOSHI !!!'],
 };
 
 const TALK_DISTANCE = 1.6;  // distância (além do corpo do personagem) em que dá para conversar
+const YOSHI_NEAR = 4;       // o Yoshi está "do lado" de alguém se estiver parado a menos disso dele
 const BLEND_TIME = 0.8;     // segundos da câmera indo até a conversa (e voltando)
 const LETTERS_PER_SEC = 30; // velocidade do texto surgindo
 
@@ -38,13 +70,17 @@ function buildUI() {
   box.className = 'speech hidden';
   const name = Object.assign(document.createElement('div'), { className: 'speech-name' });
   const text = Object.assign(document.createElement('p'), { className: 'speech-text' });
+  // o texto todo já ocupa o lugar desde o começo (a parte que ainda não apareceu fica invisível): assim uma palavra
+  // não pula para a linha de baixo no meio da digitação
+  const typed = document.createElement('span'), rest = Object.assign(document.createElement('span'), { className: 'speech-rest' });
+  text.append(typed, rest);
   const next = keycap();
   next.classList.add('speech-next');
   const tail = Object.assign(document.createElement('div'), { className: 'speech-tail' });
   box.append(name, text, next, tail);
 
   document.body.append(prompt, box);
-  return { prompt, box, name, text, next, tail };
+  return { prompt, box, name, typed, rest, next, tail };
 }
 
 export function createDialogue() {
@@ -53,7 +89,7 @@ export function createDialogue() {
   const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
   let player = null;  // o Mario
   let state = 'idle'; // idle | in (câmera indo) | talk | out (câmera voltando)
-  let talker = null, line = 0, shown = 0, blend = 0;
+  let talker = null, script = null, line = 0, shown = 0, blend = 0; // script = falas da conversa atual
   const from = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
   const to = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
   const v = new THREE.Vector3(), look = new THREE.Vector3(), m = new THREE.Matrix4();
@@ -92,12 +128,21 @@ export function createDialogue() {
   function showLine() {
     shown = 0;
     ui.name.textContent = talker.name;
-    ui.text.textContent = '';
+    ui.typed.textContent = ''; ui.rest.textContent = script[line];
     ui.next.classList.add('hidden');
+  }
+
+  // o Yoshi está parado do lado do personagem t?
+  function yoshiBeside(t) {
+    const y = talkers.find((k) => k.id === 'yoshi');
+    if (!y || y === t || !y.available()) return false;
+    const a = y.position(), b = t.position();
+    return Math.hypot(a.x - b.x, a.z - b.z) < YOSHI_NEAR;
   }
 
   function start(t, current) {
     talker = t; line = 0; state = 'in'; blend = 0;
+    script = Array.isArray(t.lines) ? t.lines : (yoshiBeside(t) ? t.lines.withYoshi : t.lines.alone);
     from.pos.copy(current.position); from.quat.copy(current.quaternion);
     framing(t, to);
     player.locked = true;
@@ -160,15 +205,17 @@ export function createDialogue() {
 
       if (state === 'in' || state === 'talk') {
         // texto surgindo letra por letra; E completa o texto ou passa para o próximo balão
-        const full = talker.lines[line];
+        const full = script[line];
         if (pressed && state === 'talk') {
           if (shown < full.length) shown = full.length;
-          else if (++line < talker.lines.length) showLine();
+          else if (++line < script.length) showLine();
           else { finish(); return; }
         }
         shown = Math.min(full.length, shown + dt * LETTERS_PER_SEC);
-        ui.text.textContent = talker.lines[line].slice(0, Math.floor(shown));
-        ui.next.classList.toggle('hidden', shown < talker.lines[line].length);
+        const n = Math.floor(shown);
+        ui.typed.textContent = script[line].slice(0, n);
+        ui.rest.textContent = script[line].slice(n);
+        ui.next.classList.toggle('hidden', shown < script[line].length);
         // a pontinha do balão aponta para o personagem
         v.copy(head(talker, look)).project(camera);
         const x = THREE.MathUtils.clamp((v.x * 0.5 + 0.5) * innerWidth - ui.box.getBoundingClientRect().left, 40, ui.box.clientWidth - 40);
