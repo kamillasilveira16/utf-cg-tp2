@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioAnimations.js';
-import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad, collideWithLuigi, collideWithPiranhas, groundHeight } from './island.js';
+import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad, collideWithLuigi, collideWithPiranhas, collideWithFlag, collideWithTrees, groundHeight } from './island.js';
 import { keys, consumePress } from './input.js';
 import { collideWithYoshi } from './yoshi.js';
 
@@ -96,6 +96,8 @@ export async function loadMario() {
       collideWithCaptainToad(group.position, RADIUS); // e o Capitão Toad
       collideWithLuigi(group.position, RADIUS); // e o Luigi
       collideWithPiranhas(group.position, RADIUS); // e as plantas carnívoras
+      collideWithFlag(group.position, RADIUS); // e o poste da bandeira
+      collideWithTrees(group.position, RADIUS); // e os troncos das árvores
       collideWithYoshi(group.position, RADIUS); // e o Yoshi (onde ele estiver)
       clampToIsland(group.position);
 

@@ -21,6 +21,7 @@ export const MATERIALS = {
   casa:        { specular: 0x3a3a3a, shininess: 25 }, // casas pintadas: um pouco mais lisas
   personagem:  { specular: 0x555555, shininess: 45 }, // roupas, pele e luvas dos personagens: brilho mais marcado
   planta:      { specular: 0x777777, shininess: 70 }, // cabeça das plantas carnívoras: lisa e brilhante
+  arvore:      { specular: 0x1a1a1a, shininess: 8 },  // copa e tronco das árvores: foscos
 };
 
 export function createLights(scene) {
@@ -38,6 +39,11 @@ function copyCommon(from, to) {
     if (from[k] !== undefined) to[k] = from[k];
   }
   if (from.color) to.color.copy(from.color);
+  // shader modificado (ex.: vento, ver wind.js): a versão convertida continua com a modificação
+  if (from.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) {
+    to.onBeforeCompile = from.onBeforeCompile;
+    to.customProgramCacheKey = from.customProgramCacheKey;
+  }
   return to;
 }
 

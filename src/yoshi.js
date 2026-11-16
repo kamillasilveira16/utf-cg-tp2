@@ -3,7 +3,7 @@ import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import {
   PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, groundHeight, clampToIsland,
   collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad,
-  collideWithLuigi, collideWithPiranhas,
+  collideWithLuigi, collideWithPiranhas, collideWithFlag, collideWithTrees,
 } from './island.js';
 
 // ----------------------------------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ function runPose(phase) {
 // Lugares e trajetos
 // ----------------------------------------------------------------------------------------------------------
 const OBSTACLES = [collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach,
-  collideWithCaptainToad, collideWithLuigi, collideWithPiranhas];
+  collideWithCaptainToad, collideWithLuigi, collideWithPiranhas, collideWithFlag, collideWithTrees];
 
 const _p = new THREE.Vector3();
 function isFree(x, z, r) {

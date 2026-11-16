@@ -13,6 +13,9 @@ import { loadLuigi } from './luigi.js';
 import { loadPiranhaPlants } from './piranha.js';
 import { loadYoshi } from './yoshi.js';
 import { loadSky } from './sky.js';
+import { WIND } from './wind.js';
+import { createTrees } from './trees.js';
+import { loadFlag } from './flag.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe6ff); // aparece só até o céu carregar
@@ -64,6 +67,16 @@ loadCaptainToad().then((t) => island.group.add(lighting.register(t, MATERIALS.pe
 // Luigi em frente à porta da casa dele
 loadLuigi().then((l) => island.group.add(lighting.register(l, MATERIALS.personagem))).catch(console.error);
 
+// árvores low-poly (as copas balançam com o vento, ver trees.js e wind.js)
+island.group.add(lighting.register(createTrees(), MATERIALS.arvore));
+
+// poste com bandeira no morro 'bandeira' (a bandeira tremula com o vento, ver flag.js)
+let flag = null;
+loadFlag().then((f) => {
+  flag = f;
+  island.group.add(lighting.register(f.group, MATERIALS.construcao));
+}).catch(console.error);
+
 // céu: domo que acompanha a câmera (ver sky.js); fora da ilha e sem iluminação
 let sky = null;
 loadSky().then((s) => { sky = s; scene.add(s.group); }).catch(console.error);
@@ -81,7 +94,9 @@ addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime; // limita dt: depois de uma aba em segundo plano o Mario não atravessa o castelo num quadro só
+  WIND.update(t); // vento: tempo e direção (o shear em si é feito no shader)
   island.update(t);
+  if (flag) flag.update(dt);
   if (piranhas) piranhas.update(t);
   if (yoshi) yoshi.update(dt);
   if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario

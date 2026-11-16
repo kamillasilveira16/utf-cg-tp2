@@ -24,7 +24,7 @@ export function clampToIsland(pos, margin = 0.5) {
 // ---------------------------------------------------------------------------------------------
 const HILLS = [
   { x: -1.9, z: -1.4, r: 2.0, h: 0.75, name: 'peach' },
-  { x:  2.3, z:  1.1, r: 1.4, h: 0.48, name: '' },
+  { x:  2.3, z:  1.1, r: 1.4, h: 0.48, name: 'bandeira' },
   { x: -0.2, z:  2.9, r: 1.1, h: 0.34, name: 'luigi' },
   { x:  3.0, z: -2.3, r: 1.2, h: 0.29, name: 'toad' },
   { x: -3.0, z:  1.8, r: 1.0, h: 0.21, name: 'piranha' }, // planta carnívora no topo
@@ -257,6 +257,65 @@ export function collideWithLuigi(pos, radius = 0.35) {
   if (d >= min) return pos;
   if (d > 1e-6) { pos.x = LUIGI_CHAR_SITE.x + (dx / d) * min; pos.z = LUIGI_CHAR_SITE.z + (dz / d) * min; }
   else pos.x = LUIGI_CHAR_SITE.x + min;
+  return pos;
+}
+
+// empurra um ponto para fora de um círculo { x, z, colliderRadius } (o Mario é um círculo de raio `radius`)
+function pushOutOfCircle(c, pos, radius) {
+  const dx = pos.x - c.x, dz = pos.z - c.z, d = Math.hypot(dx, dz), min = c.colliderRadius + radius;
+  if (d >= min) return pos;
+  if (d > 1e-6) { pos.x = c.x + (dx / d) * min; pos.z = c.z + (dz / d) * min; }
+  else pos.x = c.x + min;
+  return pos;
+}
+
+// Poste com bandeira (ver flag.js): no centro do morro marcado com name: 'bandeira'.
+const FLAG_HILL = HILLS.find((m) => m.name === 'bandeira');
+export const FLAG_SITE = {
+  x: FLAG_HILL.x * ISLAND_SCALE, z: FLAG_HILL.z * ISLAND_SCALE,
+  yaw: Math.atan2(-FLAG_HILL.x, -FLAG_HILL.z), // a bandeira (+Z do modelo) virada para o centro da ilha
+  height: 6,            // altura do poste no mundo, do chão até a bola amarela (o Mario tem 1,4)
+  colliderRadius: 1.0,  // o bloco da base: círculo no chão
+};
+export const collideWithFlag = (pos, radius = 0.35) => pushOutOfCircle(FLAG_SITE, pos, radius);
+
+// Árvores (ver trees.js): TREE_COUNT árvores espalhadas pela grama, em lugares livres e longe dos personagens.
+// Os lugares são escolhidos uma vez, ao carregar: numa grade de candidatos livres, pega o primeiro e depois, a cada
+// vez, o candidato mais longe de todos os já escolhidos (assim elas ficam bem espalhadas). Como tudo é determinístico,
+// as árvores ficam sempre nos mesmos lugares.
+const TREE_COUNT = 8;
+const TREE_CLEARANCE = 1.6;   // espaço livre em volta do tronco (a copa não pode entrar nas construções)
+const TREE_KEEP_AWAY = [      // [x, z, distância mínima]: personagens (e os lugares do Yoshi do lado deles) e o Mario
+  [PEACH_SITE.x, PEACH_SITE.z, 4.5], [CAPTAIN_TOAD_SITE.x, CAPTAIN_TOAD_SITE.z, 4.5],
+  [LUIGI_CHAR_SITE.x, LUIGI_CHAR_SITE.z, 4.5], [2.5 * ISLAND_SCALE, -1.5 * ISLAND_SCALE, 3], // início do Mario
+  [FLAG_SITE.x, FLAG_SITE.z, 3.5],
+];
+function treeSpotFree(x, z) {
+  const p = new THREE.Vector3();
+  for (const f of [collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPiranhas]) {
+    p.set(x, 0, z); f(p, TREE_CLEARANCE);
+    if (Math.abs(p.x - x) > 1e-6 || Math.abs(p.z - z) > 1e-6) return false;
+  }
+  p.set(x, 0, z); clampToIsland(p, 2.2);
+  if (Math.abs(p.x - x) > 1e-6 || Math.abs(p.z - z) > 1e-6) return false;
+  return TREE_KEEP_AWAY.every(([ax, az, d]) => Math.hypot(x - ax, z - az) >= d);
+}
+export const TREE_SITES = (() => {
+  const cand = [];
+  for (let x = -32; x <= 32; x += 1) for (let z = -32; z <= 32; z += 1) if (treeSpotFree(x, z)) cand.push({ x, z });
+  const chosen = [cand.reduce((a, b) => (Math.hypot(b.x, b.z) > Math.hypot(a.x, a.z) ? b : a))]; // começa pela borda
+  while (chosen.length < TREE_COUNT && chosen.length < cand.length) {
+    let best = null, bestD = -1;
+    for (const c of cand) {
+      const d = Math.min(...chosen.map((s) => Math.hypot(c.x - s.x, c.z - s.z)));
+      if (d > bestD) { bestD = d; best = c; }
+    }
+    chosen.push(best);
+  }
+  return chosen.map((c, i) => ({ ...c, colliderRadius: 0.45, seed: i + 1 })); // colisão: só o tronco
+})();
+export function collideWithTrees(pos, radius = 0.35) {
+  for (const t of TREE_SITES) pushOutOfCircle(t, pos, radius);
   return pos;
 }
 
