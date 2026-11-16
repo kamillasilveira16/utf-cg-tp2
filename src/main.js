@@ -12,9 +12,10 @@ import { loadCaptainToad } from './captaintoad.js';
 import { loadLuigi } from './luigi.js';
 import { loadPiranhaPlants } from './piranha.js';
 import { loadYoshi } from './yoshi.js';
+import { loadSky } from './sky.js';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xbfe6ff);
+scene.background = new THREE.Color(0xbfe6ff); // aparece só até o céu carregar
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -63,6 +64,10 @@ loadCaptainToad().then((t) => island.group.add(lighting.register(t, MATERIALS.pe
 // Luigi em frente à porta da casa dele
 loadLuigi().then((l) => island.group.add(lighting.register(l, MATERIALS.personagem))).catch(console.error);
 
+// céu: domo que acompanha a câmera (ver sky.js); fora da ilha e sem iluminação
+let sky = null;
+loadSky().then((s) => { sky = s; scene.add(s.group); }).catch(console.error);
+
 // Yoshi: o personagem com 3 poses (tecla P), cada uma ao lado de um personagem (ver yoshi.js)
 let yoshi = null;
 loadYoshi().then((y) => {
@@ -81,5 +86,6 @@ renderer.setAnimationLoop(() => {
   if (yoshi) yoshi.update(dt);
   if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario
   cameras.update(dt);
+  if (sky) sky.update(cameras.camera); // depois da câmera se mexer
   renderer.render(scene, cameras.camera);
 });

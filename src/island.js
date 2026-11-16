@@ -422,12 +422,12 @@ export function createIsland() {
   group.add(body);
 
   // borda de grama (ondulada + chanfro) e camada de terra
+  // A laje de grama é desenhada INTEIRA (lateral, topo e fundo): o topo plano (y = 0) tapa as frestas na emenda com o
+  // terreno (o contorno do terreno e o da laje são aproximados com números de pontos diferentes) e o fundo fecha a
+  // ilha para quem olha de baixo. polygonOffset empurra a laje um tiquinho para trás no z-buffer: onde o terreno
+  // também está em y = 0 (perto da borda), ele ganha e não fica piscando.
   const grassGeo = slabGeo(0.1, 0.3, 0.1);
-  // desenha só a lateral da laje: o topo plano ficaria escondido dentro dos morros
-  const sides = grassGeo.groups.find((g) => g.materialIndex === 1);
-  grassGeo.clearGroups();
-  grassGeo.setDrawRange(sides.start, sides.count);
-  const grass = new THREE.Mesh(grassGeo, mat(0x6cc644));
+  const grass = new THREE.Mesh(grassGeo, mat(0x6cc644, { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 }));
   grass.position.y = -0.4;                       // topo em y = 0
   const dirt = new THREE.Mesh(slabGeo(-0.15, 0.35, 0.08), mat(0x8b5a3c));
   dirt.position.y = -0.88;
