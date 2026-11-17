@@ -6,7 +6,7 @@ export const keys = new Set();
 const pressed = new Set();
 export const consumePress = (code) => pressed.delete(code); // true se foi apertada desde a última vez
 
-export function setupInput({ onCamera, onLighting, onPose }) {
+export function setupInput({ onCamera, onLighting, onPose, onTime }) {
   addEventListener('keydown', (e) => {
     keys.add(e.code);
     if (!e.repeat) pressed.add(e.code); // segurar a tecla não repete o toque
@@ -16,6 +16,7 @@ export function setupInput({ onCamera, onLighting, onPose }) {
     else if (e.key === '3') onCamera(3);
     else if (e.code === 'KeyL' && !e.repeat) onLighting?.(); // liga/desliga a iluminação
     else if (e.code === 'KeyP' && !e.repeat) onPose?.(); // troca a pose do Yoshi
+    else if (e.code === 'KeyT' && !e.repeat) onTime?.(); // acelera até a noite (ou até o dia)
   });
   addEventListener('keyup', (e) => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); pressed.clear(); }); // não deixa tecla "presa" ao trocar de janela

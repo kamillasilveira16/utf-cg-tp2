@@ -18,6 +18,7 @@ import { createTrees } from './trees.js';
 import { loadFlag } from './flag.js';
 import { createRoads } from './roads.js';
 import { createDialogue } from './dialogue.js';
+import { createDayNight } from './daynight.js';
 import { PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, standHeight } from './island.js';
 
 const scene = new THREE.Scene();
@@ -26,9 +27,11 @@ scene.background = new THREE.Color(0xbfe6ff); // aparece só até o céu carrega
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
+renderer.autoClear = false; // limpa uma vez por quadro e desenha o céu e depois a cena por cima
 document.body.appendChild(renderer.domElement);
 
-createLights(scene);
+const lights = createLights(scene);
+const dayNight = createDayNight(lights); // ciclo dia/noite: muda a luz e o céu com o tempo (ver daynight.js)
 const lighting = createLighting(scene); // modelo de Phong + tecla L (ver lighting.js)
 const cameras = createCameras(renderer);
 
@@ -93,7 +96,11 @@ loadFlag().then((f) => {
 
 // céu: domo que acompanha a câmera (ver sky.js); fora da ilha e sem iluminação
 let sky = null;
-loadSky().then((s) => { sky = s; scene.add(s.group); }).catch(console.error);
+loadSky().then((s) => {
+  sky = s;
+  dayNight.sky = s;
+  scene.background = null; // o fundo agora é o céu, desenhado antes (cena própria)
+}).catch(console.error);
 
 // Yoshi: o personagem com 3 poses (tecla P), cada uma ao lado de um personagem (ver yoshi.js)
 let yoshi = null;
@@ -104,12 +111,13 @@ loadYoshi().then((y) => {
   dialogue.addTalker({ id: 'yoshi', name: 'Yoshi', position: () => y.group.position, height: 1.7, radius: 0.5, available: () => !y.running });
 }).catch(console.error);
 
-setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => { if (!dialogue.active) yoshi?.nextPose(); } }); // sem trocar de pose no meio da conversa
+setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => { if (!dialogue.active) yoshi?.nextPose(); }, onTime: dayNight.skip }); // sem trocar de pose no meio da conversa
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime; // limita dt: depois de uma aba em segundo plano o Mario não atravessa o castelo num quadro só
+  dayNight.update(dt); // hora do dia: luz e céu
   WIND.update(t); // vento: tempo e direção (o shear em si é feito no shader)
   island.update(t);
   if (flag) flag.update(dt);
@@ -119,6 +127,8 @@ renderer.setAnimationLoop(() => {
   cameras.update(dt);
   dialogue.update(dt, cameras.camera); // depois do Mario e da câmera: etiqueta "Falar", balões e câmera da conversa
   const camera = dialogue.camera || cameras.camera;
-  if (sky) sky.update(camera); // depois da câmera se mexer
+  if (sky) renderer.setClearColor(sky.clearColor);
+  renderer.clear();
+  if (sky) { sky.update(camera); renderer.render(sky.scene, camera); } // céu primeiro (depois da câmera se mexer)
   renderer.render(scene, camera);
 });
