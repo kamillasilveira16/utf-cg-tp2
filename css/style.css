@@ -51,3 +51,32 @@ canvas { display: block; }
   border-top: 22px solid rgba(255, 255, 255, 0.94);
 }
 .speech-rest { visibility: hidden; }
+
+/* ---------- volume da música (ver src/music.js) ---------- */
+.volume {
+  position: fixed; top: 14px; right: 14px; z-index: 10;
+  display: flex; align-items: center; gap: 10px; user-select: none;
+}
+.volume-button {
+  width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #1785c1; background: rgba(255, 255, 255, 0.92); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s;
+}
+.volume-button:hover { transform: scale(1.07); }
+.volume-bar {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 23px;
+  background: rgba(255, 255, 255, 0.92); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+.volume-value { width: 3.2em; text-align: right; color: #5d5d5d; font: 800 15px/1 "Trebuchet MS", "Segoe UI", Arial, sans-serif; }
+.volume-bar input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 150px; height: 8px; border-radius: 4px; cursor: pointer;
+  background: linear-gradient(90deg, #1785c1 var(--fill, 40%), #cfd8dc var(--fill, 40%));
+}
+.volume-bar input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; border: 3px solid #1785c1; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.volume-bar input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid #1785c1;
+}

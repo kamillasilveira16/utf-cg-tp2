@@ -20,6 +20,7 @@ import { createRoads } from './roads.js';
 import { createDialogue } from './dialogue.js';
 import { createDayNight } from './daynight.js';
 import { createBlobShadows } from './shadows.js';
+import { setupMusic } from './music.js';
 import { PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, standHeight } from './island.js';
 
 const scene = new THREE.Scene();
@@ -127,6 +128,7 @@ loadYoshi().then((y) => {
   dialogue.addTalker({ id: 'yoshi', name: 'Yoshi', position: () => y.group.position, height: 1.7, radius: 0.5, available: () => !y.running });
 }).catch(console.error);
 
+setupMusic(); // música de fundo + botão de volume (ver music.js)
 setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => { if (!dialogue.active) yoshi?.nextPose(); }, onTime: dayNight.skip }); // sem trocar de pose no meio da conversa
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });
 
