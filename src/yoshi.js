@@ -343,6 +343,8 @@ export async function loadYoshi() {
   return {
     group: yoshi,
     get running() { return path !== null; },
+    // lugar atual (ou para onde está correndo): 0 = ao lado da Peach, 1 = do Capitão Toad, 2 = do Luigi
+    get spot() { return spot; },
     // tecla P: vai para a próxima pose (se já estiver correndo, muda o destino a partir de onde está)
     nextPose() {
       spot = (spot + 1) % SPOTS.length;

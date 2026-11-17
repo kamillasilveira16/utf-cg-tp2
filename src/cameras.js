@@ -5,8 +5,8 @@ import { ISLAND_SCALE as S } from './island.js';
 // centro do diorama (ilha + base rochosa)
 export const CENTER = new THREE.Vector3(0, -1.5 * S, 0);
 
-const ELEVATION = THREE.MathUtils.degToRad(45); // ângulo acima do chão da câmera 2
-const ROTATION_SPEED = 0.3;                      // rad/s da câmera 2
+const ELEVATION = THREE.MathUtils.degToRad(45); // ângulo acima do chão da câmera 1
+const ROTATION_SPEED = 0.3;                      // rad/s da câmera 1
 const MIN_RADIUS = 8 * S, MAX_RADIUS = 40 * S;
 
 // câmera 3: terceira pessoa, atrás e acima do Mario
@@ -22,7 +22,7 @@ export function createCameras(renderer) {
   const aspect = innerWidth / innerHeight;
   const dom = renderer.domElement;
 
-  // Câmera 1 (padrão): orbital, controlada pelo mouse, alvo fixo no centro
+  // Câmera 2: orbital, controlada pelo mouse (arrastar gira, scroll aproxima), alvo fixo no centro
   const orbitCam = new THREE.PerspectiveCamera(50, aspect, 0.1, 300);
   orbitCam.position.set(10 * S, 4 * S, 16 * S);
   const controls = new OrbitControls(orbitCam, dom);
@@ -31,7 +31,7 @@ export function createCameras(renderer) {
   controls.minDistance = MIN_RADIUS;
   controls.maxDistance = MAX_RADIUS;
 
-  // Câmera 2: ~45° acima do chão, olhando para o centro e girando ao longo do tempo
+  // Câmera 1 (padrão): ~45° acima do chão, olhando para o centro e girando ao longo do tempo (scroll aproxima)
   const autoCam = new THREE.PerspectiveCamera(50, aspect, 0.1, 300);
   let radius = 18 * S, angle = 0;
 
@@ -42,7 +42,8 @@ export function createCameras(renderer) {
   let followPitch = FOLLOW_PITCH, followDist = FOLLOW_DIST, snap = true;
   const lookAt = new THREE.Vector3(), desired = new THREE.Vector3();
 
-  let active = orbitCam; // câmera 1 é a padrão
+  let active = autoCam; // câmera 1 é a padrão
+  controls.enabled = false; // o OrbitControls só reage ao mouse na câmera 2
 
   // direção horizontal para onde uma câmera olha (guarda a última válida se olhar direto para baixo)
   const _d = new THREE.Vector3();
@@ -54,7 +55,7 @@ export function createCameras(renderer) {
   }
 
   addEventListener('wheel', (e) => {
-    // câmera 2: aproxima/afasta do alvo (na câmera 1 quem trata o scroll é o OrbitControls)
+    // câmera 1: aproxima/afasta do alvo (na câmera 2 quem trata o scroll é o OrbitControls)
     if (active === autoCam) radius = THREE.MathUtils.clamp(radius + e.deltaY * 0.015, MIN_RADIUS, MAX_RADIUS);
     if (active === followCam) followDist = THREE.MathUtils.clamp(followDist + e.deltaY * 0.01, FOLLOW_MIN_DIST, FOLLOW_MAX_DIST);
   });
@@ -85,12 +86,14 @@ export function createCameras(renderer) {
 
   return {
     get camera() { return active; },
+    // número da câmera ativa (1, 2 ou 3)
+    get index() { return active === autoCam ? 1 : active === orbitCam ? 2 : 3; },
     // direção horizontal da câmera ativa: o Mario anda relativo a ela
     get heading() { return active === followCam ? heading : headingOf(active); },
     setFollowTarget(obj) { target = obj; },
     select(n) {
       const prev = active;
-      active = n === 3 ? followCam : n === 2 ? autoCam : orbitCam;
+      active = n === 3 ? followCam : n === 2 ? orbitCam : autoCam;
       controls.enabled = active === orbitCam; // evita o OrbitControls reagir ao mouse/scroll nas outras câmeras
 
       if (active === followCam && prev !== followCam) {

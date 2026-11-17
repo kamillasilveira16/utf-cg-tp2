@@ -21,6 +21,7 @@ import { createDialogue } from './dialogue.js';
 import { createDayNight } from './daynight.js';
 import { createBlobShadows } from './shadows.js';
 import { setupMusic } from './music.js';
+import { createHud } from './hud.js';
 import { PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, standHeight } from './island.js';
 
 const scene = new THREE.Scene();
@@ -129,7 +130,9 @@ loadYoshi().then((y) => {
 }).catch(console.error);
 
 setupMusic(); // música de fundo + botão de volume (ver music.js)
-setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => { if (!dialogue.active) yoshi?.nextPose(); }, onTime: dayNight.skip }); // sem trocar de pose no meio da conversa
+// painel com a hora e as teclas, no canto superior esquerdo (tecla F mostra/esconde; ver hud.js)
+const hud = createHud({ cameras, lighting, dayNight, yoshi: () => yoshi });
+setupInput({ onCamera: cameras.select, onLighting: lighting.toggle, onPose: () => { if (!dialogue.active) yoshi?.nextPose(); }, onTime: dayNight.skip, onPanel: hud.toggle }); // sem trocar de pose no meio da conversa
 addEventListener('resize', () => { cameras.resize(); renderer.setSize(innerWidth, innerHeight); });
 
 const clock = new THREE.Clock();
@@ -144,6 +147,7 @@ renderer.setAnimationLoop(() => {
   if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario
   cameras.update(dt);
   shadows.update(); // depois de todos se mexerem
+  hud.update();
   dialogue.update(dt, cameras.camera); // depois do Mario e da câmera: etiqueta "Falar", balões e câmera da conversa
   const camera = dialogue.camera || cameras.camera;
   if (sky) renderer.setClearColor(sky.clearColor);
