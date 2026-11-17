@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { consumePress } from './input.js';
+import { playSound } from './music.js';
 
 // ----------------------------------------------------------------------------------------------------------
 // CONVERSA COM OS PERSONAGENS (como nos jogos do Mario)
@@ -143,6 +144,7 @@ export function createDialogue() {
   function start(t, current) {
     talker = t; line = 0; state = 'in'; blend = 0;
     script = Array.isArray(t.lines) ? t.lines : (yoshiBeside(t) ? t.lines.withYoshi : t.lines.alone);
+    playSound(t.id); // a voz do personagem (ver music.js)
     from.pos.copy(current.position); from.quat.copy(current.quaternion);
     framing(t, to);
     player.locked = true;

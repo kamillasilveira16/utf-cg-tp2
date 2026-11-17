@@ -3,6 +3,7 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { createRunAnimation } from './marioAnimations.js';
 import { ISLAND_SCALE, clampToIsland, collideWithCastle, collideWithToadHouse, collideWithLuigiHouse, collideWithPeach, collideWithCaptainToad, collideWithLuigi, collideWithPiranhas, collideWithFlag, collideWithTrees, standHeight } from './island.js';
 import { keys, consumePress } from './input.js';
+import { playSound } from './music.js';
 import { collideWithYoshi } from './yoshi.js';
 
 // caminho relativo a este arquivo (funciona local e no GitHub Pages)
@@ -111,7 +112,7 @@ export async function loadMario() {
       const ground = standHeight(group.position.x, group.position.z); // chão ou estrada
       // consome o toque todo quadro (mesmo no ar) e guarda um instante: pulo "adiantado" funciona
       jumpBuf = consumePress('Space') && !locked ? JUMP_BUFFER : Math.max(0, jumpBuf - dt);
-      if (onGround && jumpBuf > 0) { vy = JUMP_SPEED; onGround = false; jumpBuf = 0; }
+      if (onGround && jumpBuf > 0) { vy = JUMP_SPEED; onGround = false; jumpBuf = 0; playSound('jump'); }
       if (!onGround) {
         if (vy > 0 && !keys.has('Space')) vy = Math.min(vy, JUMP_SPEED * JUMP_CUT); // espaço solto: pulo curto
         vy -= GRAVITY * (vy < 0 ? FALL_GRAVITY : 1) * dt;
