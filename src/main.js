@@ -19,6 +19,7 @@ import { loadFlag } from './flag.js';
 import { createRoads } from './roads.js';
 import { createDialogue } from './dialogue.js';
 import { createDayNight } from './daynight.js';
+import { createBlobShadows } from './shadows.js';
 import { PEACH_SITE, CAPTAIN_TOAD_SITE, LUIGI_CHAR_SITE, standHeight } from './island.js';
 
 const scene = new THREE.Scene();
@@ -34,6 +35,10 @@ const lights = createLights(scene);
 const dayNight = createDayNight(lights); // ciclo dia/noite: muda a luz e o céu com o tempo (ver daynight.js)
 const lighting = createLighting(scene); // modelo de Phong + tecla L (ver lighting.js)
 const cameras = createCameras(renderer);
+
+// sombras simples (manchas no chão) embaixo dos personagens, seguindo a luz do sol/lua (ver shadows.js)
+const shadows = createBlobShadows({ sun: lights.sun, lighting });
+scene.add(shadows.group);
 
 // conversa com os personagens: chegar perto + tecla E (ver dialogue.js)
 const dialogue = createDialogue();
@@ -61,6 +66,7 @@ loadMario().then((m) => {
   island.group.add(lighting.register(m.group, MATERIALS.personagem));
   cameras.setFollowTarget(m.group);
   dialogue.setPlayer(m);
+  shadows.add(m.group, { radius: 0.45, height: 1.4 });
 }).catch(console.error);
 
 // castelo da Peach no topo do morro mais alto
@@ -73,13 +79,22 @@ loadToadHouse().then((h) => island.group.add(lighting.register(h, MATERIALS.casa
 loadLuigiHouse().then((h) => island.group.add(lighting.register(h, MATERIALS.casa))).catch(console.error);
 
 // Peach em frente à porta do castelo
-loadPeach().then((p) => island.group.add(lighting.register(p, MATERIALS.personagem))).catch(console.error);
+loadPeach().then((p) => {
+  island.group.add(lighting.register(p, MATERIALS.personagem));
+  shadows.add(p, { radius: 0.6, height: 1.6 });
+}).catch(console.error);
 
 // Capitão Toad em frente à porta da casa do Toad
-loadCaptainToad().then((t) => island.group.add(lighting.register(t, MATERIALS.personagem))).catch(console.error);
+loadCaptainToad().then((t) => {
+  island.group.add(lighting.register(t, MATERIALS.personagem));
+  shadows.add(t, { radius: 0.45, height: 1.1 });
+}).catch(console.error);
 
 // Luigi em frente à porta da casa dele
-loadLuigi().then((l) => island.group.add(lighting.register(l, MATERIALS.personagem))).catch(console.error);
+loadLuigi().then((l) => {
+  island.group.add(lighting.register(l, MATERIALS.personagem));
+  shadows.add(l, { radius: 0.45, height: 1.6 });
+}).catch(console.error);
 
 // estradas de terra do centro até a porta de cada casa (ver roads.js)
 island.group.add(lighting.register(createRoads(), MATERIALS.terreno));
@@ -107,6 +122,7 @@ let yoshi = null;
 loadYoshi().then((y) => {
   yoshi = y;
   island.group.add(lighting.register(y.group, MATERIALS.personagem));
+  shadows.add(y.group, { radius: 0.6, height: 1.6 });
   // o Yoshi anda: a posição é a atual, e só dá para conversar com ele parado
   dialogue.addTalker({ id: 'yoshi', name: 'Yoshi', position: () => y.group.position, height: 1.7, radius: 0.5, available: () => !y.running });
 }).catch(console.error);
@@ -125,6 +141,7 @@ renderer.setAnimationLoop(() => {
   if (yoshi) yoshi.update(dt);
   if (mario) mario.update(dt, cameras.heading); // antes da câmera: a câmera 3 segue o Mario
   cameras.update(dt);
+  shadows.update(); // depois de todos se mexerem
   dialogue.update(dt, cameras.camera); // depois do Mario e da câmera: etiqueta "Falar", balões e câmera da conversa
   const camera = dialogue.camera || cameras.camera;
   if (sky) renderer.setClearColor(sky.clearColor);

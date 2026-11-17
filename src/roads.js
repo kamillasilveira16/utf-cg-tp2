@@ -43,7 +43,8 @@ function stripGeometry(pts, seed) {
 // pracinha: o miolo (terra, raio PLAZA_RADIUS) ou só o anel da borda esverdeada em volta dele
 function plazaGeometry(edge) {
   const out = 1 + EDGE_EXTRA / PLAZA_RADIUS;
-  const NS = 48, RINGS = edge ? [[1, DIRT], [out, EDGE]] : [[0, DIRT], [0.5, DIRT], [0.85, DIRT], [1, DIRT]];
+  // anéis próximos (a cada 10% do raio): a praça segue bem o relevo, sem pedaços acima ou abaixo do chão
+  const NS = 48, RINGS = edge ? [[1, DIRT], [out, EDGE]] : Array.from({ length: 11 }, (_, i) => [i / 10, DIRT]);
   const pos = [], col = [], idx = [];
   for (const [f, c] of RINGS) {
     for (let j = 0; j < NS; j++) {
